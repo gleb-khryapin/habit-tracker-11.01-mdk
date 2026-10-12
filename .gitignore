@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# База данных SQLite (создаётся при запуске)
+*.db
+*.db-shm
+*.db-wal
+
+# Python (тесты)
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+allure-results/
+allure-report/
+
+# IDE
+.idea/
+.vscode/
+
+CLAUDE.md
