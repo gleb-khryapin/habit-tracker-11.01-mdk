@@ -72,6 +72,3 @@ src/HabitTrackerDesktop/      десктопное приложение
 src/HabitTracker/             прежняя веб-версия (ASP.NET Core), см. docs/requirements-web.md
 ```
 
-## QA-портфолио
-
-_Раздел заполняется по мере тестирования: чек-листы, тест-кейсы, баг-репорты в Issues, автотесты._
