@@ -15,22 +15,30 @@ partial class MainForm
 
     private void InitializeComponent()
     {
+        components = new System.ComponentModel.Container();
         lblTitle = new Label();
         lblInfo = new Label();
-        btnTemplates = new Button();
+        btnAchievements = new Button();
         btnLogout = new Button();
+        cmbCategory = new ComboBox();
+        btnTemplates = new Button();
+        btnCategories = new Button();
+        btnPhrases = new Button();
         grid = new DataGridView();
         colEmoji = new DataGridViewTextBoxColumn();
         colTitle = new DataGridViewTextBoxColumn();
+        colCategory = new DataGridViewTextBoxColumn();
         colProgress = new DataGridViewTextBoxColumn();
         colHours = new DataGridViewTextBoxColumn();
         colStart = new DataGridViewTextBoxColumn();
         colStatus = new DataGridViewTextBoxColumn();
         lblDetails = new Label();
         btnCheckIn = new Button();
+        btnReminders = new Button();
         btnAdd = new Button();
         btnEdit = new Button();
         btnDelete = new Button();
+        timer = new System.Windows.Forms.Timer(components);
         ((System.ComponentModel.ISupportInitialize)grid).BeginInit();
         SuspendLayout();
 
@@ -48,13 +56,13 @@ partial class MainForm
         lblInfo.Tag = "muted";
         lblInfo.Text = "demo · сегодня 01.01.2026";
 
-        btnTemplates.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        btnTemplates.Location = new Point(636, 24);
-        btnTemplates.Name = "btnTemplates";
-        btnTemplates.Size = new Size(210, 36);
-        btnTemplates.TabIndex = 2;
-        btnTemplates.Text = "Предложенные привычки";
-        btnTemplates.Click += btnTemplates_Click;
+        btnAchievements.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnAchievements.Location = new Point(716, 24);
+        btnAchievements.Name = "btnAchievements";
+        btnAchievements.Size = new Size(130, 36);
+        btnAchievements.TabIndex = 2;
+        btnAchievements.Text = "Достижения";
+        btnAchievements.Click += btnAchievements_Click;
 
         btnLogout.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         btnLogout.Location = new Point(856, 24);
@@ -64,6 +72,37 @@ partial class MainForm
         btnLogout.Text = "Выйти";
         btnLogout.Click += btnLogout_Click;
 
+        cmbCategory.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbCategory.Location = new Point(24, 86);
+        cmbCategory.Name = "cmbCategory";
+        cmbCategory.Size = new Size(220, 25);
+        cmbCategory.TabIndex = 4;
+        cmbCategory.SelectedIndexChanged += cmbCategory_SelectedIndexChanged;
+
+        btnTemplates.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnTemplates.Location = new Point(516, 80);
+        btnTemplates.Name = "btnTemplates";
+        btnTemplates.Size = new Size(210, 36);
+        btnTemplates.TabIndex = 5;
+        btnTemplates.Text = "Предложенные привычки";
+        btnTemplates.Click += btnTemplates_Click;
+
+        btnCategories.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnCategories.Location = new Point(736, 80);
+        btnCategories.Name = "btnCategories";
+        btnCategories.Size = new Size(110, 36);
+        btnCategories.TabIndex = 6;
+        btnCategories.Text = "Категории";
+        btnCategories.Click += btnCategories_Click;
+
+        btnPhrases.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnPhrases.Location = new Point(856, 80);
+        btnPhrases.Name = "btnPhrases";
+        btnPhrases.Size = new Size(100, 36);
+        btnPhrases.TabIndex = 7;
+        btnPhrases.Text = "Фразы";
+        btnPhrases.Click += btnPhrases_Click;
+
         grid.AllowUserToAddRows = false;
         grid.AllowUserToDeleteRows = false;
         grid.AllowUserToResizeRows = false;
@@ -71,8 +110,8 @@ partial class MainForm
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         grid.ColumnHeadersHeight = 38;
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-        grid.Columns.AddRange(new DataGridViewColumn[] { colEmoji, colTitle, colProgress, colHours, colStart, colStatus });
-        grid.Location = new Point(24, 92);
+        grid.Columns.AddRange(new DataGridViewColumn[] { colEmoji, colTitle, colCategory, colProgress, colHours, colStart, colStatus });
+        grid.Location = new Point(24, 128);
         grid.MultiSelect = false;
         grid.Name = "grid";
         grid.ReadOnly = true;
@@ -80,7 +119,7 @@ partial class MainForm
         grid.RowTemplate.Height = 38;
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         grid.Size = new Size(932, 372);
-        grid.TabIndex = 4;
+        grid.TabIndex = 8;
         grid.SelectionChanged += grid_SelectionChanged;
 
         colEmoji.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
@@ -94,6 +133,13 @@ partial class MainForm
         colTitle.Name = "colTitle";
         colTitle.ReadOnly = true;
         colTitle.SortMode = DataGridViewColumnSortMode.NotSortable;
+
+        colCategory.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+        colCategory.HeaderText = "Категория";
+        colCategory.Name = "colCategory";
+        colCategory.ReadOnly = true;
+        colCategory.SortMode = DataGridViewColumnSortMode.NotSortable;
+        colCategory.Width = 150;
 
         colProgress.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
         colProgress.HeaderText = "Прогресс";
@@ -124,62 +170,79 @@ partial class MainForm
         colStatus.Width = 130;
 
         lblDetails.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        lblDetails.Location = new Point(24, 476);
+        lblDetails.Location = new Point(24, 512);
         lblDetails.Name = "lblDetails";
         lblDetails.Size = new Size(932, 62);
-        lblDetails.TabIndex = 5;
+        lblDetails.TabIndex = 9;
         lblDetails.Tag = "muted";
         lblDetails.Text = "Подсказка по выбранной привычке";
 
         btnCheckIn.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        btnCheckIn.Location = new Point(24, 556);
+        btnCheckIn.Location = new Point(24, 592);
         btnCheckIn.Name = "btnCheckIn";
         btnCheckIn.Size = new Size(200, 40);
-        btnCheckIn.TabIndex = 6;
+        btnCheckIn.TabIndex = 10;
         btnCheckIn.Tag = "primary";
         btnCheckIn.Text = "Отметить сегодня";
         btnCheckIn.Click += btnCheckIn_Click;
 
+        btnReminders.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnReminders.Location = new Point(236, 592);
+        btnReminders.Name = "btnReminders";
+        btnReminders.Size = new Size(150, 40);
+        btnReminders.TabIndex = 11;
+        btnReminders.Text = "Напоминания";
+        btnReminders.Click += btnReminders_Click;
+
         btnAdd.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-        btnAdd.Location = new Point(602, 556);
+        btnAdd.Location = new Point(602, 592);
         btnAdd.Name = "btnAdd";
         btnAdd.Size = new Size(110, 40);
-        btnAdd.TabIndex = 7;
+        btnAdd.TabIndex = 12;
         btnAdd.Text = "Добавить";
         btnAdd.Click += btnAdd_Click;
 
         btnEdit.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-        btnEdit.Location = new Point(724, 556);
+        btnEdit.Location = new Point(724, 592);
         btnEdit.Name = "btnEdit";
         btnEdit.Size = new Size(110, 40);
-        btnEdit.TabIndex = 8;
+        btnEdit.TabIndex = 13;
         btnEdit.Text = "Изменить";
         btnEdit.Click += btnEdit_Click;
 
         btnDelete.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-        btnDelete.Location = new Point(846, 556);
+        btnDelete.Location = new Point(846, 592);
         btnDelete.Name = "btnDelete";
         btnDelete.Size = new Size(110, 40);
-        btnDelete.TabIndex = 9;
+        btnDelete.TabIndex = 14;
         btnDelete.Tag = "danger";
         btnDelete.Text = "Удалить";
         btnDelete.Click += btnDelete_Click;
 
+        timer.Enabled = true;
+        timer.Interval = 20000;
+        timer.Tick += timer_Tick;
+
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(980, 616);
+        ClientSize = new Size(980, 652);
         Controls.Add(lblTitle);
         Controls.Add(lblInfo);
-        Controls.Add(btnTemplates);
+        Controls.Add(btnAchievements);
         Controls.Add(btnLogout);
+        Controls.Add(cmbCategory);
+        Controls.Add(btnTemplates);
+        Controls.Add(btnCategories);
+        Controls.Add(btnPhrases);
         Controls.Add(grid);
         Controls.Add(lblDetails);
         Controls.Add(btnCheckIn);
+        Controls.Add(btnReminders);
         Controls.Add(btnAdd);
         Controls.Add(btnEdit);
         Controls.Add(btnDelete);
         Font = new Font("Segoe UI", 10F);
-        MinimumSize = new Size(860, 520);
+        MinimumSize = new Size(900, 560);
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "Привычки";
@@ -190,18 +253,25 @@ partial class MainForm
 
     private Label lblTitle;
     private Label lblInfo;
-    private Button btnTemplates;
+    private Button btnAchievements;
     private Button btnLogout;
+    private ComboBox cmbCategory;
+    private Button btnTemplates;
+    private Button btnCategories;
+    private Button btnPhrases;
     private DataGridView grid;
     private DataGridViewTextBoxColumn colEmoji;
     private DataGridViewTextBoxColumn colTitle;
+    private DataGridViewTextBoxColumn colCategory;
     private DataGridViewTextBoxColumn colProgress;
     private DataGridViewTextBoxColumn colHours;
     private DataGridViewTextBoxColumn colStart;
     private DataGridViewTextBoxColumn colStatus;
     private Label lblDetails;
     private Button btnCheckIn;
+    private Button btnReminders;
     private Button btnAdd;
     private Button btnEdit;
     private Button btnDelete;
+    private System.Windows.Forms.Timer timer;
 }

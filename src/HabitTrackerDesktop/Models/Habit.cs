@@ -6,12 +6,16 @@ public class Habit
 {
     public int Id { get; set; }
     public int UserId { get; set; }
+    public int? TemplateId { get; set; }
+    public int? CategoryId { get; set; }
+    public string CategoryName { get; set; }
     public string Title { get; set; }
     public string Emoji { get; set; }
     public int TargetDays { get; set; }
     public double? HoursPerDay { get; set; }
     public DateTime StartDate { get; set; }
     public string CompletionMessage { get; set; }
+    public string PoolMessage { get; set; }
     public int Progress { get; set; }
 
     public HabitStatus GetStatus(DateTime today)
@@ -44,10 +48,14 @@ public class Habit
 
     public string GetCompletionMessage()
     {
-        if (string.IsNullOrEmpty(CompletionMessage))
+        if (!string.IsNullOrEmpty(CompletionMessage))
         {
-            return Rules.GetPoolMessage(Id);
+            return CompletionMessage;
         }
-        return CompletionMessage;
+        if (!string.IsNullOrEmpty(PoolMessage))
+        {
+            return PoolMessage;
+        }
+        return Rules.DefaultMessage;
     }
 }

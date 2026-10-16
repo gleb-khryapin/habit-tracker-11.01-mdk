@@ -19,28 +19,82 @@ public static class SeedData
         demo.Role = "user";
         UserRepository.Add(demo);
 
-        AddTemplate("💧", "Пить воду", "6–8 стаканов чистой воды в течение дня",
+        Category health = AddCategory("Здоровье");
+        Category sport = AddCategory("Спорт");
+        Category study = AddCategory("Учёба");
+        Category mindfulness = AddCategory("Осознанность");
+        Category productivity = AddCategory("Продуктивность");
+
+        AddPoolMessage("Финиш! Каждый из этих дней был маленькой победой над «потом» — и вместе они сложились в большую.");
+        AddPoolMessage("Весь срок без единого пропуска. Это и есть дисциплина: не настроение, а решение, которое ты принимаешь каждый день.");
+        AddPoolMessage("Привычка закреплена! Теперь это не усилие, а часть тебя. Дальше будет только легче.");
+        AddPoolMessage("Готово! Теперь ты точно знаешь: если решить — получится. Запомни это чувство и бери новую цель.");
+        AddPoolMessage("Регулярность сильнее таланта — и теперь у тебя есть доказательство. Можно гордиться, это заслуженно.");
+
+        AddAchievement("first_habit", "🌱", "Первый шаг", "Создана первая привычка");
+        AddAchievement("first_checkin", "🎯", "Начало положено", "Сделана первая отметка выполнения");
+        AddAchievement("streak_7", "💪", "Неделя подряд", "7 отметок подряд в одной привычке");
+        AddAchievement("streak_30", "🏃", "Марафонец", "30 отметок подряд в одной привычке");
+        AddAchievement("first_completed", "📝", "Финишёр", "Выполнена первая привычка");
+        AddAchievement("completed_3", "🧠", "Три победы", "Выполнено три привычки");
+
+        AddTemplate(health, "💧", "Пить воду", "6–8 стаканов чистой воды в течение дня",
             "Весь срок с водным балансом в порядке! Коже, суставам и голове это на пользу: меньше усталости, больше ясности. Тело точно говорит спасибо.");
-        HabitTemplate workout = AddTemplate("💪", "Утренняя зарядка", "10–15 минут движения сразу после пробуждения",
+        HabitTemplate workout = AddTemplate(sport, "💪", "Утренняя зарядка", "10–15 минут движения сразу после пробуждения",
             "Зарядка каждое утро — и так весь срок! Это лучший способ разбудить тело и голову: энергия с самого утра и меньше скованности в спине.");
-        HabitTemplate reading = AddTemplate("📚", "Чтение", "Хотя бы 20 страниц в день",
+        HabitTemplate reading = AddTemplate(study, "📚", "Чтение", "Хотя бы 20 страниц в день",
             "Каждый день с книгой — это уже сотни страниц новых мыслей. Чтение тренирует концентрацию, словарный запас и воображение. Отличная работа!");
-        AddTemplate("🧘", "Медитация", "10 минут тишины и внимания к дыханию",
+        AddTemplate(mindfulness, "🧘", "Медитация", "10 минут тишины и внимания к дыханию",
             "Целый срок практики осознанности! Регулярная медитация снижает стресс и помогает держать фокус. Теперь этот инструмент всегда с тобой.");
-        AddTemplate("😴", "Сон до 23:00", "Ложиться спать не позже 23:00",
+        AddTemplate(health, "😴", "Сон до 23:00", "Ложиться спать не позже 23:00",
             "Режим сна выстроен! Ранний отбой — это восстановление, крепкий иммунитет и ясная голова по утрам. Лучшая инвестиция в самочувствие.");
-        AddTemplate("📵", "Утро без соцсетей", "Первый час после пробуждения — без ленты",
+        AddTemplate(productivity, "📵", "Утро без соцсетей", "Первый час после пробуждения — без ленты",
             "Утро снова принадлежит тебе! Без ленты с первых минут меньше тревоги и больше внимания к своим делам. Ценный навык в мире бесконечных уведомлений.");
 
         DateTime today = Clock.Today;
-        AddHabit(demo.Id, reading.Title, reading.Emoji, 21, 0.5, today.AddDays(-3), 3, reading.CompletionMessage);
-        AddHabit(demo.Id, "Английский", "🧠", 7, 1, today.AddDays(-10), 7, null);
-        AddHabit(demo.Id, workout.Title, workout.Emoji, 30, null, today.AddDays(-6), 2, workout.CompletionMessage);
+        Habit readingHabit = AddHabit(demo.Id, reading, reading.Title, reading.Emoji, reading.CategoryId, 21, 0.5, today.AddDays(-3), 3);
+        AddHabit(demo.Id, null, "Английский", "🧠", study.Id, 7, 1, today.AddDays(-10), 7);
+        AddHabit(demo.Id, workout, workout.Title, workout.Emoji, workout.CategoryId, 30, null, today.AddDays(-6), 2);
+
+        Reminder reminder = new Reminder();
+        reminder.HabitId = readingHabit.Id;
+        reminder.Time = "20:00";
+        reminder.IsEnabled = true;
+        ReminderRepository.Add(reminder);
+
+        AchievementChecker.GiveNew(demo.Id);
     }
 
-    private static HabitTemplate AddTemplate(string emoji, string title, string description, string message)
+    private static Category AddCategory(string name)
+    {
+        Category category = new Category();
+        category.Name = name;
+        CategoryRepository.Add(category);
+        return category;
+    }
+
+    private static void AddPoolMessage(string text)
+    {
+        CompletionMessage message = new CompletionMessage();
+        message.Text = text;
+        MessageRepository.Add(message);
+    }
+
+    private static void AddAchievement(string code, string emoji, string title, string description)
+    {
+        Achievement achievement = new Achievement();
+        achievement.Code = code;
+        achievement.Emoji = emoji;
+        achievement.Title = title;
+        achievement.Description = description;
+        AchievementRepository.Add(achievement);
+    }
+
+    private static HabitTemplate AddTemplate(Category category, string emoji, string title, string description, string message)
     {
         HabitTemplate template = new HabitTemplate();
+        template.CategoryId = category.Id;
+        template.CategoryName = category.Name;
         template.Emoji = emoji;
         template.Title = title;
         template.Description = description;
@@ -49,22 +103,29 @@ public static class SeedData
         return template;
     }
 
-    private static void AddHabit(int userId, string title, string emoji, int targetDays, double? hours,
-        DateTime startDate, int checkedDays, string message)
+    private static Habit AddHabit(int userId, HabitTemplate template, string title, string emoji, int? categoryId,
+        int targetDays, double? hours, DateTime startDate, int checkedDays)
     {
         Habit habit = new Habit();
         habit.UserId = userId;
         habit.Title = title;
         habit.Emoji = emoji;
+        habit.CategoryId = categoryId;
         habit.TargetDays = targetDays;
         habit.HoursPerDay = hours;
         habit.StartDate = startDate;
-        habit.CompletionMessage = message;
+        if (template != null)
+        {
+            habit.TemplateId = template.Id;
+            habit.CompletionMessage = template.CompletionMessage;
+        }
         HabitRepository.Add(habit);
 
         for (int day = 0; day < checkedDays; day++)
         {
             HabitRepository.AddCheckin(habit.Id, startDate.AddDays(day));
         }
+
+        return habit;
     }
 }

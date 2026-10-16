@@ -12,7 +12,11 @@ public static class TemplateRepository
         using (SqliteConnection connection = Database.Open())
         {
             SqliteCommand command = connection.CreateCommand();
-            command.CommandText = "SELECT id, title, emoji, description, completion_message FROM habit_templates ORDER BY id";
+            command.CommandText = @"
+                SELECT t.id, t.title, t.emoji, t.description, t.completion_message, t.category_id, c.name
+                FROM habit_templates t
+                LEFT JOIN categories c ON c.id = t.category_id
+                ORDER BY t.id";
 
             using (SqliteDataReader reader = command.ExecuteReader())
             {
@@ -24,6 +28,11 @@ public static class TemplateRepository
                     template.Emoji = reader.GetString(2);
                     template.Description = reader.GetString(3);
                     template.CompletionMessage = reader.GetString(4);
+                    if (!reader.IsDBNull(5))
+                    {
+                        template.CategoryId = reader.GetInt32(5);
+                        template.CategoryName = reader.GetString(6);
+                    }
                     templates.Add(template);
                 }
             }
@@ -38,9 +47,10 @@ public static class TemplateRepository
         {
             SqliteCommand command = connection.CreateCommand();
             command.CommandText = @"
-                INSERT INTO habit_templates (title, emoji, description, completion_message)
-                VALUES (@title, @emoji, @description, @message);
+                INSERT INTO habit_templates (category_id, title, emoji, description, completion_message)
+                VALUES (@categoryId, @title, @emoji, @description, @message);
                 SELECT last_insert_rowid();";
+            command.Parameters.AddWithValue("@categoryId", (object)template.CategoryId ?? DBNull.Value);
             command.Parameters.AddWithValue("@title", template.Title);
             command.Parameters.AddWithValue("@emoji", template.Emoji);
             command.Parameters.AddWithValue("@description", template.Description);

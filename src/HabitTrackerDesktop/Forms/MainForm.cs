@@ -8,6 +8,8 @@ public partial class MainForm : Form
 {
     public bool LoggedOut;
 
+    private string lastReminderTime;
+
     public MainForm()
     {
         InitializeComponent();
@@ -20,13 +22,45 @@ public partial class MainForm : Form
             lblInfo.Text += " (тестовая дата)";
         }
         btnTemplates.Visible = user.IsAdmin;
+        btnCategories.Visible = user.IsAdmin;
+        btnPhrases.Visible = user.IsAdmin;
 
+        LoadCategories();
         LoadHabits();
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        timer.Stop();
+        base.OnFormClosed(e);
+    }
+
+    private void LoadCategories()
+    {
+        Category selected = cmbCategory.SelectedItem as Category;
+
+        Category all = new Category();
+        all.Id = 0;
+        all.Name = "Все категории";
+
+        cmbCategory.Items.Clear();
+        cmbCategory.Items.Add(all);
+        cmbCategory.SelectedIndex = 0;
+
+        foreach (Category category in CategoryRepository.GetAll())
+        {
+            cmbCategory.Items.Add(category);
+            if (selected != null && category.Id == selected.Id)
+            {
+                cmbCategory.SelectedItem = category;
+            }
+        }
     }
 
     private void LoadHabits()
     {
         Habit selected = GetSelectedHabit();
+        Category filter = cmbCategory.SelectedItem as Category;
         DateTime today = Clock.Today;
         List<Habit> habits = HabitRepository.GetByUser(Session.CurrentUser.Id);
         HabitStatus[] order = { HabitStatus.Active, HabitStatus.Completed, HabitStatus.Failed };
@@ -36,7 +70,8 @@ public partial class MainForm : Form
         {
             foreach (Habit habit in habits)
             {
-                if (habit.GetStatus(today) == status)
+                bool inCategory = filter == null || filter.Id == 0 || habit.CategoryId == filter.Id;
+                if (habit.GetStatus(today) == status && inCategory)
                 {
                     AddRow(habit, status);
                 }
@@ -82,6 +117,7 @@ public partial class MainForm : Form
         int index = grid.Rows.Add(
             habit.Emoji,
             habit.Title,
+            habit.CategoryName ?? "—",
             habit.Progress + " / " + habit.TargetDays,
             hours,
             habit.StartDate.ToString("dd.MM.yyyy"),
@@ -89,8 +125,8 @@ public partial class MainForm : Form
 
         DataGridViewRow row = grid.Rows[index];
         row.Tag = habit;
-        row.Cells[5].Style.ForeColor = statusColor;
-        row.Cells[5].Style.SelectionForeColor = statusColor;
+        row.Cells[6].Style.ForeColor = statusColor;
+        row.Cells[6].Style.SelectionForeColor = statusColor;
     }
 
     private Habit GetSelectedHabit()
@@ -109,12 +145,20 @@ public partial class MainForm : Form
 
         btnCheckIn.Text = "Отметить сегодня";
         btnCheckIn.Enabled = false;
+        btnReminders.Enabled = false;
         btnEdit.Enabled = false;
         btnDelete.Enabled = habit != null;
 
         if (habit == null)
         {
-            lblDetails.Text = "Пока пусто. Нажми «Добавить» и начни с одной маленькой привычки 🌱";
+            if (cmbCategory.SelectedIndex > 0)
+            {
+                lblDetails.Text = "В этой категории привычек нет.";
+            }
+            else
+            {
+                lblDetails.Text = "Пока пусто. Нажми «Добавить» и начни с одной маленькой привычки 🌱";
+            }
         }
         else if (habit.GetStatus(today) == HabitStatus.Completed)
         {
@@ -129,6 +173,7 @@ public partial class MainForm : Form
         {
             int daysLeft = habit.TargetDays - habit.Progress;
             btnEdit.Enabled = true;
+            btnReminders.Enabled = true;
 
             if (habit.IsCheckedToday(today))
             {
@@ -152,9 +197,25 @@ public partial class MainForm : Form
         }
     }
 
+    private void ShowNewAchievements()
+    {
+        foreach (Achievement achievement in AchievementChecker.GiveNew(Session.CurrentUser.Id))
+        {
+            string title = "Новое достижение: " + achievement.Emoji + " " + achievement.Title;
+            MessageForm messageForm = new MessageForm(title, achievement.Description);
+            messageForm.Text = "Новое достижение";
+            messageForm.ShowDialog(this);
+        }
+    }
+
     private void grid_SelectionChanged(object sender, EventArgs e)
     {
         UpdateDetails();
+    }
+
+    private void cmbCategory_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        LoadHabits();
     }
 
     private void btnCheckIn_Click(object sender, EventArgs e)
@@ -178,6 +239,20 @@ public partial class MainForm : Form
             MessageForm messageForm = new MessageForm(title, habit.GetCompletionMessage());
             messageForm.ShowDialog(this);
         }
+
+        ShowNewAchievements();
+    }
+
+    private void btnReminders_Click(object sender, EventArgs e)
+    {
+        Habit habit = GetSelectedHabit();
+        if (habit == null)
+        {
+            return;
+        }
+
+        RemindersForm remindersForm = new RemindersForm(habit);
+        remindersForm.ShowDialog(this);
     }
 
     private void btnAdd_Click(object sender, EventArgs e)
@@ -186,6 +261,7 @@ public partial class MainForm : Form
         if (habitForm.ShowDialog(this) == DialogResult.OK)
         {
             LoadHabits();
+            ShowNewAchievements();
         }
     }
 
@@ -212,11 +288,17 @@ public partial class MainForm : Form
             return;
         }
 
-        if (Dialogs.Confirm("Удалить привычку «" + habit.Title + "»? Отметки тоже удалятся, вернуть их нельзя."))
+        if (Dialogs.Confirm("Удалить привычку «" + habit.Title + "»? Отметки и напоминания тоже удалятся, вернуть их нельзя."))
         {
             HabitRepository.Delete(habit.Id);
             LoadHabits();
         }
+    }
+
+    private void btnAchievements_Click(object sender, EventArgs e)
+    {
+        AchievementsForm achievementsForm = new AchievementsForm();
+        achievementsForm.ShowDialog(this);
     }
 
     private void btnTemplates_Click(object sender, EventArgs e)
@@ -225,9 +307,55 @@ public partial class MainForm : Form
         templatesForm.ShowDialog(this);
     }
 
+    private void btnCategories_Click(object sender, EventArgs e)
+    {
+        CategoriesForm categoriesForm = new CategoriesForm();
+        categoriesForm.ShowDialog(this);
+        LoadCategories();
+        LoadHabits();
+    }
+
+    private void btnPhrases_Click(object sender, EventArgs e)
+    {
+        PhrasesForm phrasesForm = new PhrasesForm();
+        phrasesForm.ShowDialog(this);
+        LoadHabits();
+    }
+
     private void btnLogout_Click(object sender, EventArgs e)
     {
         LoggedOut = true;
         Close();
+    }
+
+    // Раз в минуту проверяем, не пора ли напомнить о неотмеченных привычках
+    private void timer_Tick(object sender, EventArgs e)
+    {
+        string time = DateTime.Now.ToString("HH:mm");
+        if (time == lastReminderTime)
+        {
+            return;
+        }
+        lastReminderTime = time;
+
+        DateTime today = Clock.Today;
+        List<int> dueHabitIds = ReminderRepository.GetDueHabitIds(Session.CurrentUser.Id, time);
+        string titles = "";
+
+        foreach (Habit habit in HabitRepository.GetByUser(Session.CurrentUser.Id))
+        {
+            bool isWaiting = habit.GetStatus(today) == HabitStatus.Active && !habit.IsCheckedToday(today);
+            if (dueHabitIds.Contains(habit.Id) && isWaiting)
+            {
+                titles += "\n" + habit.Emoji + " " + habit.Title;
+            }
+        }
+
+        if (titles != "")
+        {
+            timer.Stop();
+            Dialogs.Info("Напоминание · " + time, "Пора отметить выполнение:" + titles);
+            timer.Start();
+        }
     }
 }

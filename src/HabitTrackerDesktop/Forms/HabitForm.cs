@@ -17,6 +17,16 @@ public partial class HabitForm : Form
         cmbEmoji.Items.AddRange(Rules.Emojis);
         cmbEmoji.SelectedIndex = 0;
 
+        Category none = new Category();
+        none.Id = 0;
+        none.Name = "Без категории";
+        cmbCategory.Items.Add(none);
+        cmbCategory.SelectedIndex = 0;
+        foreach (Category category in CategoryRepository.GetAll())
+        {
+            cmbCategory.Items.Add(category);
+        }
+
         if (editedHabit == null)
         {
             PrepareForAdd();
@@ -66,6 +76,14 @@ public partial class HabitForm : Form
         cmbEmoji.SelectedItem = editedHabit.Emoji;
         numDays.Value = editedHabit.TargetDays;
 
+        foreach (Category category in cmbCategory.Items)
+        {
+            if (category.Id == editedHabit.CategoryId)
+            {
+                cmbCategory.SelectedItem = category;
+            }
+        }
+
         if (editedHabit.HoursPerDay != null)
         {
             chkHours.Checked = true;
@@ -96,6 +114,11 @@ public partial class HabitForm : Form
         if (template != null)
         {
             lblDescription.Text = template.Description;
+            if (template.CategoryName != null)
+            {
+                lblDescription.Text += "
+Категория: " + template.CategoryName;
+            }
         }
     }
 
@@ -109,6 +132,8 @@ public partial class HabitForm : Form
         string title;
         string emoji;
         string message = null;
+        int? templateId = null;
+        int? categoryId = null;
 
         if (editedHabit == null && rbTemplate.Checked)
         {
@@ -121,11 +146,19 @@ public partial class HabitForm : Form
             title = template.Title;
             emoji = template.Emoji;
             message = template.CompletionMessage;
+            templateId = template.Id;
+            categoryId = template.CategoryId;
         }
         else
         {
             title = txtTitle.Text.Trim();
             emoji = cmbEmoji.Text;
+
+            Category category = cmbCategory.SelectedItem as Category;
+            if (category != null && category.Id != 0)
+            {
+                categoryId = category.Id;
+            }
         }
 
         int days = (int)numDays.Value;
@@ -154,6 +187,8 @@ public partial class HabitForm : Form
         {
             Habit habit = new Habit();
             habit.UserId = Session.CurrentUser.Id;
+            habit.TemplateId = templateId;
+            habit.CategoryId = categoryId;
             habit.Title = title;
             habit.Emoji = emoji;
             habit.TargetDays = days;
@@ -166,6 +201,7 @@ public partial class HabitForm : Form
         {
             editedHabit.Title = title;
             editedHabit.Emoji = emoji;
+            editedHabit.CategoryId = categoryId;
             editedHabit.TargetDays = days;
             editedHabit.HoursPerDay = hours;
             HabitRepository.Update(editedHabit);

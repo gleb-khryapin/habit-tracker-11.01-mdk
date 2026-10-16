@@ -20,6 +20,7 @@ partial class TemplatesForm
         grid = new DataGridView();
         colEmoji = new DataGridViewTextBoxColumn();
         colTitle = new DataGridViewTextBoxColumn();
+        colCategory = new DataGridViewTextBoxColumn();
         colDescription = new DataGridViewTextBoxColumn();
         lblMessage = new Label();
         btnDelete = new Button();
@@ -28,6 +29,8 @@ partial class TemplatesForm
         txtTitle = new TextBox();
         lblEmoji = new Label();
         cmbEmoji = new ComboBox();
+        lblCategory = new Label();
+        cmbCategory = new ComboBox();
         lblDescription = new Label();
         txtDescription = new TextBox();
         lblText = new Label();
@@ -56,7 +59,7 @@ partial class TemplatesForm
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         grid.ColumnHeadersHeight = 38;
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-        grid.Columns.AddRange(new DataGridViewColumn[] { colEmoji, colTitle, colDescription });
+        grid.Columns.AddRange(new DataGridViewColumn[] { colEmoji, colTitle, colCategory, colDescription });
         grid.Location = new Point(24, 88);
         grid.MultiSelect = false;
         grid.Name = "grid";
@@ -80,7 +83,14 @@ partial class TemplatesForm
         colTitle.Name = "colTitle";
         colTitle.ReadOnly = true;
         colTitle.SortMode = DataGridViewColumnSortMode.NotSortable;
-        colTitle.Width = 170;
+        colTitle.Width = 150;
+
+        colCategory.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+        colCategory.HeaderText = "Категория";
+        colCategory.Name = "colCategory";
+        colCategory.ReadOnly = true;
+        colCategory.SortMode = DataGridViewColumnSortMode.NotSortable;
+        colCategory.Width = 130;
 
         colDescription.HeaderText = "Описание";
         colDescription.Name = "colDescription";
@@ -134,22 +144,35 @@ partial class TemplatesForm
         cmbEmoji.Size = new Size(90, 25);
         cmbEmoji.TabIndex = 9;
 
+        lblCategory.AutoSize = true;
+        lblCategory.Location = new Point(699, 190);
+        lblCategory.Name = "lblCategory";
+        lblCategory.TabIndex = 10;
+        lblCategory.Tag = "muted";
+        lblCategory.Text = "Категория";
+
+        cmbCategory.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbCategory.Location = new Point(702, 214);
+        cmbCategory.Name = "cmbCategory";
+        cmbCategory.Size = new Size(214, 25);
+        cmbCategory.TabIndex = 11;
+
         lblDescription.AutoSize = true;
         lblDescription.Location = new Point(589, 254);
         lblDescription.Name = "lblDescription";
-        lblDescription.TabIndex = 10;
+        lblDescription.TabIndex = 12;
         lblDescription.Tag = "muted";
         lblDescription.Text = "Описание (не обязательно)";
 
         txtDescription.Location = new Point(592, 278);
         txtDescription.Name = "txtDescription";
         txtDescription.Size = new Size(324, 25);
-        txtDescription.TabIndex = 11;
+        txtDescription.TabIndex = 13;
 
         lblText.AutoSize = true;
         lblText.Location = new Point(589, 318);
         lblText.Name = "lblText";
-        lblText.TabIndex = 12;
+        lblText.TabIndex = 14;
         lblText.Tag = "muted";
         lblText.Text = "Сообщение после выполнения";
 
@@ -157,12 +180,12 @@ partial class TemplatesForm
         txtMessage.Multiline = true;
         txtMessage.Name = "txtMessage";
         txtMessage.Size = new Size(324, 154);
-        txtMessage.TabIndex = 13;
+        txtMessage.TabIndex = 15;
 
         btnAdd.Location = new Point(592, 516);
         btnAdd.Name = "btnAdd";
         btnAdd.Size = new Size(324, 40);
-        btnAdd.TabIndex = 14;
+        btnAdd.TabIndex = 16;
         btnAdd.Tag = "primary";
         btnAdd.Text = "Добавить в список";
         btnAdd.Click += btnAdd_Click;
@@ -180,6 +203,8 @@ partial class TemplatesForm
         Controls.Add(txtTitle);
         Controls.Add(lblEmoji);
         Controls.Add(cmbEmoji);
+        Controls.Add(lblCategory);
+        Controls.Add(cmbCategory);
         Controls.Add(lblDescription);
         Controls.Add(txtDescription);
         Controls.Add(lblText);
@@ -203,6 +228,7 @@ partial class TemplatesForm
     private DataGridView grid;
     private DataGridViewTextBoxColumn colEmoji;
     private DataGridViewTextBoxColumn colTitle;
+    private DataGridViewTextBoxColumn colCategory;
     private DataGridViewTextBoxColumn colDescription;
     private Label lblMessage;
     private Button btnDelete;
@@ -211,6 +237,8 @@ partial class TemplatesForm
     private TextBox txtTitle;
     private Label lblEmoji;
     private ComboBox cmbEmoji;
+    private Label lblCategory;
+    private ComboBox cmbCategory;
     private Label lblDescription;
     private TextBox txtDescription;
     private Label lblText;

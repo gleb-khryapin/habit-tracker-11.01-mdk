@@ -14,8 +14,11 @@ public static class HabitRepository
             SqliteCommand command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT h.id, h.user_id, h.title, h.emoji, h.target_days, h.hours_per_day, h.start_date, h.completion_message,
-                       (SELECT COUNT(*) FROM checkins c WHERE c.habit_id = h.id) AS progress
+                       (SELECT COUNT(*) FROM checkins ch WHERE ch.habit_id = h.id) AS progress,
+                       h.template_id, h.category_id, c.name, m.text
                 FROM habits h
+                LEFT JOIN categories c ON c.id = h.category_id
+                LEFT JOIN completion_messages m ON m.id = h.message_id
                 WHERE h.user_id = @userId
                 ORDER BY h.id";
             command.Parameters.AddWithValue("@userId", userId);
@@ -40,6 +43,19 @@ public static class HabitRepository
                         habit.CompletionMessage = reader.GetString(7);
                     }
                     habit.Progress = reader.GetInt32(8);
+                    if (!reader.IsDBNull(9))
+                    {
+                        habit.TemplateId = reader.GetInt32(9);
+                    }
+                    if (!reader.IsDBNull(10))
+                    {
+                        habit.CategoryId = reader.GetInt32(10);
+                        habit.CategoryName = reader.GetString(11);
+                    }
+                    if (!reader.IsDBNull(12))
+                    {
+                        habit.PoolMessage = reader.GetString(12);
+                    }
                     habits.Add(habit);
                 }
             }
@@ -54,10 +70,12 @@ public static class HabitRepository
         {
             SqliteCommand command = connection.CreateCommand();
             command.CommandText = @"
-                INSERT INTO habits (user_id, title, emoji, target_days, hours_per_day, start_date, completion_message)
-                VALUES (@userId, @title, @emoji, @targetDays, @hours, @startDate, @message);
+                INSERT INTO habits (user_id, template_id, category_id, title, emoji, target_days, hours_per_day, start_date, completion_message)
+                VALUES (@userId, @templateId, @categoryId, @title, @emoji, @targetDays, @hours, @startDate, @message);
                 SELECT last_insert_rowid();";
             command.Parameters.AddWithValue("@userId", habit.UserId);
+            command.Parameters.AddWithValue("@templateId", (object)habit.TemplateId ?? DBNull.Value);
+            command.Parameters.AddWithValue("@categoryId", (object)habit.CategoryId ?? DBNull.Value);
             command.Parameters.AddWithValue("@title", habit.Title);
             command.Parameters.AddWithValue("@emoji", habit.Emoji);
             command.Parameters.AddWithValue("@targetDays", habit.TargetDays);
@@ -65,6 +83,30 @@ public static class HabitRepository
             command.Parameters.AddWithValue("@startDate", Database.DateToText(habit.StartDate));
             command.Parameters.AddWithValue("@message", (object)habit.CompletionMessage ?? DBNull.Value);
             habit.Id = Convert.ToInt32(command.ExecuteScalar());
+        }
+
+        // У своей привычки нет сообщения от предложенной — закрепляем за ней фразу из общего пула
+        if (habit.CompletionMessage == null)
+        {
+            List<CompletionMessage> pool = MessageRepository.GetAll();
+            if (pool.Count > 0)
+            {
+                CompletionMessage message = pool[habit.Id % pool.Count];
+                SetMessage(habit.Id, message.Id);
+                habit.PoolMessage = message.Text;
+            }
+        }
+    }
+
+    private static void SetMessage(int habitId, int messageId)
+    {
+        using (SqliteConnection connection = Database.Open())
+        {
+            SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "UPDATE habits SET message_id = @messageId WHERE id = @id";
+            command.Parameters.AddWithValue("@messageId", messageId);
+            command.Parameters.AddWithValue("@id", habitId);
+            command.ExecuteNonQuery();
         }
     }
 
@@ -75,10 +117,11 @@ public static class HabitRepository
             SqliteCommand command = connection.CreateCommand();
             command.CommandText = @"
                 UPDATE habits
-                SET title = @title, emoji = @emoji, target_days = @targetDays, hours_per_day = @hours
+                SET title = @title, emoji = @emoji, category_id = @categoryId, target_days = @targetDays, hours_per_day = @hours
                 WHERE id = @id";
             command.Parameters.AddWithValue("@title", habit.Title);
             command.Parameters.AddWithValue("@emoji", habit.Emoji);
+            command.Parameters.AddWithValue("@categoryId", (object)habit.CategoryId ?? DBNull.Value);
             command.Parameters.AddWithValue("@targetDays", habit.TargetDays);
             command.Parameters.AddWithValue("@hours", (object)habit.HoursPerDay ?? DBNull.Value);
             command.Parameters.AddWithValue("@id", habit.Id);

@@ -20,7 +20,11 @@ public static class UserRepository
         using (SqliteConnection connection = Database.Open())
         {
             SqliteCommand command = connection.CreateCommand();
-            command.CommandText = "SELECT id, username, password_hash, role FROM users WHERE username = @username";
+            command.CommandText = @"
+                SELECT u.id, u.username, u.password_hash, r.name
+                FROM users u
+                JOIN roles r ON r.id = u.role_id
+                WHERE u.username = @username";
             command.Parameters.AddWithValue("@username", username);
 
             using (SqliteDataReader reader = command.ExecuteReader())
@@ -46,8 +50,8 @@ public static class UserRepository
         {
             SqliteCommand command = connection.CreateCommand();
             command.CommandText = @"
-                INSERT INTO users (username, password_hash, role)
-                VALUES (@username, @passwordHash, @role);
+                INSERT INTO users (username, password_hash, role_id)
+                VALUES (@username, @passwordHash, (SELECT id FROM roles WHERE name = @role));
                 SELECT last_insert_rowid();";
             command.Parameters.AddWithValue("@username", user.Username);
             command.Parameters.AddWithValue("@passwordHash", user.PasswordHash);

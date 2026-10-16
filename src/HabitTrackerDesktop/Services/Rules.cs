@@ -9,18 +9,35 @@ public static class Rules
         "🎯", "💧", "🏃", "📚", "🧘", "😴", "🍎", "💪", "📝", "🎸", "🌱", "📵", "🧠", "🚶", "🎨", "💻"
     };
 
-    public static readonly string[] MessagePool =
-    {
-        "Финиш! Каждый из этих дней был маленькой победой над «потом» — и вместе они сложились в большую.",
-        "Весь срок без единого пропуска. Это и есть дисциплина: не настроение, а решение, которое ты принимаешь каждый день.",
-        "Привычка закреплена! Теперь это не усилие, а часть тебя. Дальше будет только легче.",
-        "Готово! Теперь ты точно знаешь: если решить — получится. Запомни это чувство и бери новую цель.",
-        "Регулярность сильнее таланта — и теперь у тебя есть доказательство. Можно гордиться, это заслуженно."
-    };
+    // Показывается, если за привычкой не закреплена фраза из пула (пул пуст или фразу удалили)
+    public const string DefaultMessage = "Привычка выполнена! Весь срок без единого пропуска — отличная работа.";
 
-    public static string GetPoolMessage(int habitId)
+    public const int MaxReminders = 5;
+
+    public static string CheckCategoryName(string name)
     {
-        return MessagePool[habitId % MessagePool.Length];
+        if (name == "")
+        {
+            return "Укажи название категории";
+        }
+        if (name.Length > 30)
+        {
+            return "Название категории: не длиннее 30 символов";
+        }
+        return null;
+    }
+
+    public static string CheckPoolMessage(string message)
+    {
+        if (message == "")
+        {
+            return "Укажи текст фразы";
+        }
+        if (message.Length < 10 || message.Length > 500)
+        {
+            return "Фраза: от 10 до 500 символов";
+        }
+        return null;
     }
 
     public static string CheckUsername(string username)

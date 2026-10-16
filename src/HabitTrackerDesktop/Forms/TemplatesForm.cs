@@ -14,6 +14,16 @@ public partial class TemplatesForm : Form
         cmbEmoji.Items.AddRange(Rules.Emojis);
         cmbEmoji.SelectedIndex = 0;
 
+        Category none = new Category();
+        none.Id = 0;
+        none.Name = "Без категории";
+        cmbCategory.Items.Add(none);
+        cmbCategory.SelectedIndex = 0;
+        foreach (Category category in CategoryRepository.GetAll())
+        {
+            cmbCategory.Items.Add(category);
+        }
+
         LoadTemplates();
     }
 
@@ -23,7 +33,7 @@ public partial class TemplatesForm : Form
 
         foreach (HabitTemplate template in TemplateRepository.GetAll())
         {
-            int index = grid.Rows.Add(template.Emoji, template.Title, template.Description);
+            int index = grid.Rows.Add(template.Emoji, template.Title, template.CategoryName ?? "—", template.Description);
             grid.Rows[index].Tag = template;
         }
 
@@ -79,6 +89,11 @@ public partial class TemplatesForm : Form
         HabitTemplate template = new HabitTemplate();
         template.Title = title;
         template.Emoji = cmbEmoji.Text;
+        Category category = cmbCategory.SelectedItem as Category;
+        if (category != null && category.Id != 0)
+        {
+            template.CategoryId = category.Id;
+        }
         template.Description = description;
         template.CompletionMessage = message;
         TemplateRepository.Add(template);

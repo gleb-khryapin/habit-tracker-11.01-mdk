@@ -27,6 +27,8 @@ partial class HabitForm
         txtTitle = new TextBox();
         lblEmoji = new Label();
         cmbEmoji = new ComboBox();
+        lblCategory = new Label();
+        cmbCategory = new ComboBox();
         lblDays = new Label();
         numDays = new NumericUpDown();
         chkHours = new CheckBox();
@@ -94,6 +96,8 @@ partial class HabitForm
         pnlCustom.Controls.Add(txtTitle);
         pnlCustom.Controls.Add(lblEmoji);
         pnlCustom.Controls.Add(cmbEmoji);
+        pnlCustom.Controls.Add(lblCategory);
+        pnlCustom.Controls.Add(cmbCategory);
         pnlCustom.Location = new Point(24, 104);
         pnlCustom.Name = "pnlCustom";
         pnlCustom.Size = new Size(372, 132);
@@ -124,6 +128,19 @@ partial class HabitForm
         cmbEmoji.Name = "cmbEmoji";
         cmbEmoji.Size = new Size(90, 25);
         cmbEmoji.TabIndex = 3;
+
+        lblCategory.AutoSize = true;
+        lblCategory.Location = new Point(117, 66);
+        lblCategory.Name = "lblCategory";
+        lblCategory.TabIndex = 4;
+        lblCategory.Tag = "muted";
+        lblCategory.Text = "Категория";
+
+        cmbCategory.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbCategory.Location = new Point(120, 90);
+        cmbCategory.Name = "cmbCategory";
+        cmbCategory.Size = new Size(252, 25);
+        cmbCategory.TabIndex = 5;
 
         lblDays.AutoSize = true;
         lblDays.Location = new Point(21, 248);
@@ -227,6 +244,8 @@ partial class HabitForm
     private TextBox txtTitle;
     private Label lblEmoji;
     private ComboBox cmbEmoji;
+    private Label lblCategory;
+    private ComboBox cmbCategory;
     private Label lblDays;
     private NumericUpDown numDays;
     private CheckBox chkHours;
