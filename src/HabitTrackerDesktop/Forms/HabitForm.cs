@@ -116,8 +116,7 @@ public partial class HabitForm : Form
             lblDescription.Text = template.Description;
             if (template.CategoryName != null)
             {
-                lblDescription.Text += "
-Категория: " + template.CategoryName;
+                lblDescription.Text += "\nКатегория: " + template.CategoryName;
             }
         }
     }
