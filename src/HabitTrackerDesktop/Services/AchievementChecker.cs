@@ -26,6 +26,7 @@ public static class AchievementChecker
             }
         }
 
+        int bestFlame = StreakCalculator.GetBest(ActivityRepository.GetDays(userId));
         List<Achievement> newAchievements = new List<Achievement>();
         DateTime today = Clock.Today;
 
@@ -36,7 +37,7 @@ public static class AchievementChecker
                 continue;
             }
 
-            if (IsEarned(achievement.Code, habits.Count, totalCheckins, bestProgress, completedHabits))
+            if (IsEarned(achievement.Code, habits.Count, totalCheckins, bestProgress, completedHabits, bestFlame))
             {
                 AchievementRepository.Give(userId, achievement.Id, today);
                 achievement.EarnedDate = today;
@@ -47,7 +48,7 @@ public static class AchievementChecker
         return newAchievements;
     }
 
-    private static bool IsEarned(string code, int habitCount, int totalCheckins, int bestProgress, int completedHabits)
+    private static bool IsEarned(string code, int habitCount, int totalCheckins, int bestProgress, int completedHabits, int bestFlame)
     {
         switch (code)
         {
@@ -63,6 +64,8 @@ public static class AchievementChecker
                 return completedHabits >= 1;
             case "completed_3":
                 return completedHabits >= 3;
+            case "flame_7":
+                return bestFlame >= 7;
             default:
                 return false;
         }

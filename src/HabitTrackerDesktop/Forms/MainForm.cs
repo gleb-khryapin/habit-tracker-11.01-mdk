@@ -24,6 +24,11 @@ public partial class MainForm : Form
         btnTemplates.Visible = user.IsAdmin;
         btnCategories.Visible = user.IsAdmin;
         btnPhrases.Visible = user.IsAdmin;
+        btnAudit.Visible = user.IsAdmin;
+        if (user.IsAdmin)
+        {
+            btnRequests.Text = "Заявки";
+        }
 
         LoadCategories();
         LoadHabits();
@@ -91,6 +96,36 @@ public partial class MainForm : Form
         }
 
         UpdateDetails();
+        UpdateStreak();
+    }
+
+    private void UpdateStreak()
+    {
+        DateTime today = Clock.Today;
+        List<DateTime> days = ActivityRepository.GetDays(Session.CurrentUser.Id);
+        int current = StreakCalculator.GetCurrent(days, today);
+        int best = StreakCalculator.GetBest(days);
+
+        if (current == 0 && best == 0)
+        {
+            lblStreak.Text = "🔥 Отметь привычку, чтобы зажечь огонёк";
+            lblStreak.ForeColor = Theme.Muted;
+        }
+        else if (current == 0)
+        {
+            lblStreak.Text = "🔥 Огонёк погас · рекорд " + best + " дн.";
+            lblStreak.ForeColor = Theme.Muted;
+        }
+        else if (days.Contains(today))
+        {
+            lblStreak.Text = "🔥 Огонёк: " + current + " дн. · рекорд " + best + " дн.";
+            lblStreak.ForeColor = Theme.Flame;
+        }
+        else
+        {
+            lblStreak.Text = "🔥 Огонёк: " + current + " дн. · отметь сегодня, иначе погаснет";
+            lblStreak.ForeColor = Theme.Muted;
+        }
     }
 
     private void AddRow(Habit habit, HabitStatus status)
@@ -320,6 +355,32 @@ public partial class MainForm : Form
         PhrasesForm phrasesForm = new PhrasesForm();
         phrasesForm.ShowDialog(this);
         LoadHabits();
+    }
+
+    private void btnRequests_Click(object sender, EventArgs e)
+    {
+        if (Session.CurrentUser.IsAdmin)
+        {
+            ReviewForm reviewForm = new ReviewForm();
+            reviewForm.ShowDialog(this);
+        }
+        else
+        {
+            ProposalsForm proposalsForm = new ProposalsForm();
+            proposalsForm.ShowDialog(this);
+        }
+    }
+
+    private void btnAudit_Click(object sender, EventArgs e)
+    {
+        AuditForm auditForm = new AuditForm();
+        auditForm.ShowDialog(this);
+
+        if (auditForm.Restored)
+        {
+            LoggedOut = true;
+            Close();
+        }
     }
 
     private void btnLogout_Click(object sender, EventArgs e)

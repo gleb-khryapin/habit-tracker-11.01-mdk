@@ -18,6 +18,9 @@ partial class MainForm
         components = new System.ComponentModel.Container();
         lblTitle = new Label();
         lblInfo = new Label();
+        lblStreak = new Label();
+        btnRequests = new Button();
+        btnAudit = new Button();
         btnAchievements = new Button();
         btnLogout = new Button();
         cmbCategory = new ComboBox();
@@ -55,6 +58,28 @@ partial class MainForm
         lblInfo.TabIndex = 1;
         lblInfo.Tag = "muted";
         lblInfo.Text = "demo · сегодня 01.01.2026";
+
+        lblStreak.Font = new Font("Segoe UI Semibold", 11F);
+        lblStreak.Location = new Point(200, 22);
+        lblStreak.Name = "lblStreak";
+        lblStreak.Size = new Size(506, 28);
+        lblStreak.TabIndex = 20;
+        lblStreak.Text = "🔥 Огонёк";
+        lblStreak.TextAlign = ContentAlignment.MiddleLeft;
+
+        btnRequests.Location = new Point(256, 80);
+        btnRequests.Name = "btnRequests";
+        btnRequests.Size = new Size(130, 36);
+        btnRequests.TabIndex = 21;
+        btnRequests.Text = "Мои заявки";
+        btnRequests.Click += btnRequests_Click;
+
+        btnAudit.Location = new Point(396, 80);
+        btnAudit.Name = "btnAudit";
+        btnAudit.Size = new Size(110, 36);
+        btnAudit.TabIndex = 22;
+        btnAudit.Text = "Журнал";
+        btnAudit.Click += btnAudit_Click;
 
         btnAchievements.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         btnAchievements.Location = new Point(716, 24);
@@ -228,6 +253,9 @@ partial class MainForm
         ClientSize = new Size(980, 652);
         Controls.Add(lblTitle);
         Controls.Add(lblInfo);
+        Controls.Add(lblStreak);
+        Controls.Add(btnRequests);
+        Controls.Add(btnAudit);
         Controls.Add(btnAchievements);
         Controls.Add(btnLogout);
         Controls.Add(cmbCategory);
@@ -242,7 +270,7 @@ partial class MainForm
         Controls.Add(btnEdit);
         Controls.Add(btnDelete);
         Font = new Font("Segoe UI", 10F);
-        MinimumSize = new Size(900, 560);
+        MinimumSize = new Size(996, 600);
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "Привычки";
@@ -253,6 +281,9 @@ partial class MainForm
 
     private Label lblTitle;
     private Label lblInfo;
+    private Label lblStreak;
+    private Button btnRequests;
+    private Button btnAudit;
     private Button btnAchievements;
     private Button btnLogout;
     private ComboBox cmbCategory;

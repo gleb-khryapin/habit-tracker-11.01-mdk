@@ -14,6 +14,21 @@ public static class Rules
 
     public const int MaxReminders = 5;
 
+    public const int MaxPendingRequests = 3;
+
+    public static string CheckRejectReason(string reason)
+    {
+        if (reason == "")
+        {
+            return "Укажи причину отказа";
+        }
+        if (reason.Length < 5 || reason.Length > 200)
+        {
+            return "Причина отказа: от 5 до 200 символов";
+        }
+        return null;
+    }
+
     public static string CheckCategoryName(string name)
     {
         if (name == "")

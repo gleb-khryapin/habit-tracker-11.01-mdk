@@ -14,6 +14,7 @@ public static class Theme
     public static readonly Color Accent = Color.FromArgb(139, 92, 246);
     public static readonly Color Success = Color.FromArgb(125, 211, 176);
     public static readonly Color Danger = Color.FromArgb(242, 133, 138);
+    public static readonly Color Flame = Color.FromArgb(255, 159, 67);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);

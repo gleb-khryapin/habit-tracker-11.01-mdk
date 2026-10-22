@@ -37,6 +37,7 @@ public static class SeedData
         AddAchievement("streak_30", "🏃", "Марафонец", "30 отметок подряд в одной привычке");
         AddAchievement("first_completed", "📝", "Финишёр", "Выполнена первая привычка");
         AddAchievement("completed_3", "🧠", "Три победы", "Выполнено три привычки");
+        AddAchievement("flame_7", "🔥", "Огонь недели", "Огонёк горит 7 дней подряд");
 
         AddTemplate(health, "💧", "Пить воду", "6–8 стаканов чистой воды в течение дня",
             "Весь срок с водным балансом в порядке! Коже, суставам и голове это на пользу: меньше усталости, больше ясности. Тело точно говорит спасибо.");
@@ -63,6 +64,32 @@ public static class SeedData
         ReminderRepository.Add(reminder);
 
         AchievementChecker.GiveNew(demo.Id);
+
+        AddRequest(demo.Id, health, "🚶", "Прогулка 30 минут", "Полчаса пешком на свежем воздухе",
+            "Каждый день на свежем воздухе — это бодрость, крепкий сон и ясная голова. Отличная привычка!", today.AddDays(-1));
+        TemplateRequest rejected = AddRequest(demo.Id, null, "💻", "Без телефона утром", "Первый час после пробуждения без телефона",
+            "Утро без телефона — это спокойствие и внимание к себе. Главный соблазн дня побеждён!", today.AddDays(-2));
+        RequestRepository.Reject(rejected.Id, "Такая привычка уже есть в списке: «Утро без соцсетей»", today.AddDays(-1));
+
+        AuditRepository.Clear();
+    }
+
+    private static TemplateRequest AddRequest(int userId, Category category, string emoji, string title,
+        string description, string message, DateTime date)
+    {
+        TemplateRequest request = new TemplateRequest();
+        request.UserId = userId;
+        if (category != null)
+        {
+            request.CategoryId = category.Id;
+        }
+        request.Emoji = emoji;
+        request.Title = title;
+        request.Description = description;
+        request.CompletionMessage = message;
+        request.CreatedDate = date;
+        RequestRepository.Add(request);
+        return request;
     }
 
     private static Category AddCategory(string name)
