@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -7,9 +7,9 @@ public static class UserRepository
 {
     public static int Count()
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "SELECT COUNT(*) FROM users";
             return Convert.ToInt32(command.ExecuteScalar());
         }
@@ -17,9 +17,9 @@ public static class UserRepository
 
     public static User FindByUsername(string username)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT u.id, u.username, u.password_hash, r.name
                 FROM users u
@@ -27,7 +27,7 @@ public static class UserRepository
                 WHERE u.username = @username";
             command.Parameters.AddWithValue("@username", username);
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 if (!reader.Read())
                 {
@@ -46,13 +46,13 @@ public static class UserRepository
 
     public static void Add(User user)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO users (username, password_hash, role_id)
                 VALUES (@username, @passwordHash, (SELECT id FROM roles WHERE name = @role));
-                SELECT last_insert_rowid();";
+                SELECT LAST_INSERT_ID();";
             command.Parameters.AddWithValue("@username", user.Username);
             command.Parameters.AddWithValue("@passwordHash", user.PasswordHash);
             command.Parameters.AddWithValue("@role", user.Role);

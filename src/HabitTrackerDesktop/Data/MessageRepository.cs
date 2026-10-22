@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -9,12 +9,12 @@ public static class MessageRepository
     {
         List<CompletionMessage> messages = new List<CompletionMessage>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "SELECT id, text FROM completion_messages ORDER BY id";
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
@@ -31,12 +31,12 @@ public static class MessageRepository
 
     public static void Add(CompletionMessage message)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO completion_messages (text) VALUES (@text);
-                SELECT last_insert_rowid();";
+                SELECT LAST_INSERT_ID();";
             command.Parameters.AddWithValue("@text", message.Text);
             message.Id = Convert.ToInt32(command.ExecuteScalar());
         }
@@ -44,9 +44,9 @@ public static class MessageRepository
 
     public static void Delete(int id)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "DELETE FROM completion_messages WHERE id = @id";
             command.Parameters.AddWithValue("@id", id);
             command.ExecuteNonQuery();

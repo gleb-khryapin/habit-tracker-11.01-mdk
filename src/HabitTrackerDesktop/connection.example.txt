@@ -1,0 +1,1 @@
+Server=localhost;Port=3306;User ID=root;Password=;Database=habit_tracker;CharSet=utf8mb4

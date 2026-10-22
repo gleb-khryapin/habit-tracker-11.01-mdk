@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -9,21 +9,21 @@ public static class ReminderRepository
     {
         List<Reminder> reminders = new List<Reminder>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "SELECT id, habit_id, time, is_enabled FROM reminders WHERE habit_id = @habitId ORDER BY time";
             command.Parameters.AddWithValue("@habitId", habitId);
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
                     Reminder reminder = new Reminder();
                     reminder.Id = reader.GetInt32(0);
                     reminder.HabitId = reader.GetInt32(1);
-                    reminder.Time = reader.GetString(2);
-                    reminder.IsEnabled = reader.GetInt32(3) == 1;
+                    reminder.Time = reader.GetTimeSpan(2).ToString(@"hh\:mm");
+                    reminder.IsEnabled = reader.GetBoolean(3);
                     reminders.Add(reminder);
                 }
             }
@@ -37,9 +37,9 @@ public static class ReminderRepository
     {
         List<int> habitIds = new List<int>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT r.habit_id
                 FROM reminders r
@@ -48,7 +48,7 @@ public static class ReminderRepository
             command.Parameters.AddWithValue("@userId", userId);
             command.Parameters.AddWithValue("@time", time);
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
@@ -62,13 +62,13 @@ public static class ReminderRepository
 
     public static void Add(Reminder reminder)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO reminders (habit_id, time, is_enabled)
                 VALUES (@habitId, @time, @isEnabled);
-                SELECT last_insert_rowid();";
+                SELECT LAST_INSERT_ID();";
             command.Parameters.AddWithValue("@habitId", reminder.HabitId);
             command.Parameters.AddWithValue("@time", reminder.Time);
             command.Parameters.AddWithValue("@isEnabled", reminder.IsEnabled ? 1 : 0);
@@ -78,9 +78,9 @@ public static class ReminderRepository
 
     public static void SetEnabled(int id, bool isEnabled)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "UPDATE reminders SET is_enabled = @isEnabled WHERE id = @id";
             command.Parameters.AddWithValue("@isEnabled", isEnabled ? 1 : 0);
             command.Parameters.AddWithValue("@id", id);
@@ -90,9 +90,9 @@ public static class ReminderRepository
 
     public static void Delete(int id)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "DELETE FROM reminders WHERE id = @id";
             command.Parameters.AddWithValue("@id", id);
             command.ExecuteNonQuery();

@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -9,12 +9,12 @@ public static class CategoryRepository
     {
         List<Category> categories = new List<Category>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "SELECT id, name FROM categories ORDER BY name";
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
@@ -31,12 +31,12 @@ public static class CategoryRepository
 
     public static void Add(Category category)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO categories (name) VALUES (@name);
-                SELECT last_insert_rowid();";
+                SELECT LAST_INSERT_ID();";
             command.Parameters.AddWithValue("@name", category.Name);
             category.Id = Convert.ToInt32(command.ExecuteScalar());
         }
@@ -44,9 +44,9 @@ public static class CategoryRepository
 
     public static void Delete(int id)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "DELETE FROM categories WHERE id = @id";
             command.Parameters.AddWithValue("@id", id);
             command.ExecuteNonQuery();

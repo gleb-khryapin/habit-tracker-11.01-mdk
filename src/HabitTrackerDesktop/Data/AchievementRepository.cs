@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -10,9 +10,9 @@ public static class AchievementRepository
     {
         List<Achievement> achievements = new List<Achievement>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT a.id, a.code, a.title, a.emoji, a.description, ua.earned_date
                 FROM achievements a
@@ -20,7 +20,7 @@ public static class AchievementRepository
                 ORDER BY a.id";
             command.Parameters.AddWithValue("@userId", userId);
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
@@ -32,7 +32,7 @@ public static class AchievementRepository
                     achievement.Description = reader.GetString(4);
                     if (!reader.IsDBNull(5))
                     {
-                        achievement.EarnedDate = Database.TextToDate(reader.GetString(5));
+                        achievement.EarnedDate = reader.GetDateTime(5);
                     }
                     achievements.Add(achievement);
                 }
@@ -44,13 +44,13 @@ public static class AchievementRepository
 
     public static void Add(Achievement achievement)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO achievements (code, title, emoji, description)
                 VALUES (@code, @title, @emoji, @description);
-                SELECT last_insert_rowid();";
+                SELECT LAST_INSERT_ID();";
             command.Parameters.AddWithValue("@code", achievement.Code);
             command.Parameters.AddWithValue("@title", achievement.Title);
             command.Parameters.AddWithValue("@emoji", achievement.Emoji);
@@ -61,15 +61,15 @@ public static class AchievementRepository
 
     public static void Give(int userId, int achievementId, DateTime date)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO user_achievements (user_id, achievement_id, earned_date)
                 VALUES (@userId, @achievementId, @date)";
             command.Parameters.AddWithValue("@userId", userId);
             command.Parameters.AddWithValue("@achievementId", achievementId);
-            command.Parameters.AddWithValue("@date", Database.DateToText(date));
+            command.Parameters.AddWithValue("@date", date.Date);
             command.ExecuteNonQuery();
         }
     }

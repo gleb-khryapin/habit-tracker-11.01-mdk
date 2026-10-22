@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -9,9 +9,9 @@ public static class AuditRepository
     {
         List<AuditEntry> entries = new List<AuditEntry>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT id, created_at, action, table_name, record_id, details
                 FROM audit_log
@@ -19,13 +19,13 @@ public static class AuditRepository
                 LIMIT @count";
             command.Parameters.AddWithValue("@count", count);
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
                     AuditEntry entry = new AuditEntry();
                     entry.Id = reader.GetInt32(0);
-                    entry.CreatedAt = reader.GetString(1);
+                    entry.CreatedAt = reader.GetDateTime(1).ToString("yyyy-MM-dd HH:mm:ss");
                     entry.Action = reader.GetString(2);
                     entry.TableName = reader.GetString(3);
                     entry.RecordId = reader.GetInt32(4);
@@ -40,9 +40,9 @@ public static class AuditRepository
 
     public static void Clear()
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "DELETE FROM audit_log";
             command.ExecuteNonQuery();
         }

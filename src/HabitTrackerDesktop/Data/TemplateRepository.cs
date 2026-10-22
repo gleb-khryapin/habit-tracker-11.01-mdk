@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -9,16 +9,16 @@ public static class TemplateRepository
     {
         List<HabitTemplate> templates = new List<HabitTemplate>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT t.id, t.title, t.emoji, t.description, t.completion_message, t.category_id, c.name
                 FROM habit_templates t
                 LEFT JOIN categories c ON c.id = t.category_id
                 ORDER BY t.id";
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
@@ -43,13 +43,13 @@ public static class TemplateRepository
 
     public static void Add(HabitTemplate template)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO habit_templates (category_id, title, emoji, description, completion_message)
                 VALUES (@categoryId, @title, @emoji, @description, @message);
-                SELECT last_insert_rowid();";
+                SELECT LAST_INSERT_ID();";
             command.Parameters.AddWithValue("@categoryId", (object)template.CategoryId ?? DBNull.Value);
             command.Parameters.AddWithValue("@title", template.Title);
             command.Parameters.AddWithValue("@emoji", template.Emoji);
@@ -61,9 +61,9 @@ public static class TemplateRepository
 
     public static void Delete(int id)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "DELETE FROM habit_templates WHERE id = @id";
             command.Parameters.AddWithValue("@id", id);
             command.ExecuteNonQuery();

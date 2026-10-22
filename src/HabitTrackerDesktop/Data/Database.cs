@@ -1,231 +1,228 @@
 using System.Globalization;
-using Microsoft.Data.Sqlite;
+using System.Text;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
 public static class Database
 {
-    public static string FilePath = Path.Combine(AppContext.BaseDirectory, "habits.db");
+    public static string ConnectionString = "Server=localhost;Port=3306;User ID=root;Password=;Database=habit_tracker;CharSet=utf8mb4";
 
-    // Версия схемы. При изменении таблиц увеличить на 1: старый файл БД пересоздастся при запуске
-    private const int SchemaVersion = 4;
+    private const string BackupHeader = "-- habit_tracker backup";
 
-    public static SqliteConnection Open()
+    private static readonly string[] Tables =
     {
-        SqliteConnection connection = new SqliteConnection("Data Source=" + FilePath + ";Foreign Keys=True");
+        "roles", "users", "categories", "completion_messages", "habit_templates", "habits", "checkins",
+        "reminders", "achievements", "user_achievements", "user_activity", "template_requests", "audit_log"
+    };
+
+    private static readonly string[] TableSql =
+    {
+        @"CREATE TABLE IF NOT EXISTS roles (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(20) NOT NULL UNIQUE
+        )",
+        @"CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(20) NOT NULL UNIQUE,
+            password_hash VARCHAR(100) NOT NULL,
+            role_id INT NOT NULL,
+            FOREIGN KEY (role_id) REFERENCES roles (id)
+        )",
+        @"CREATE TABLE IF NOT EXISTS categories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(30) NOT NULL UNIQUE
+        )",
+        @"CREATE TABLE IF NOT EXISTS completion_messages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            text VARCHAR(500) NOT NULL
+        )",
+        @"CREATE TABLE IF NOT EXISTS habit_templates (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            category_id INT NULL,
+            title VARCHAR(50) NOT NULL,
+            emoji VARCHAR(10) NOT NULL,
+            description VARCHAR(200) NOT NULL DEFAULT '',
+            completion_message VARCHAR(500) NOT NULL,
+            FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL
+        )",
+        @"CREATE TABLE IF NOT EXISTS habits (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            template_id INT NULL,
+            category_id INT NULL,
+            message_id INT NULL,
+            title VARCHAR(50) NOT NULL,
+            emoji VARCHAR(10) NOT NULL,
+            target_days INT NOT NULL CHECK (target_days BETWEEN 1 AND 365),
+            hours_per_day DECIMAL(3,1) NULL CHECK (hours_per_day IS NULL OR hours_per_day BETWEEN 0.5 AND 24),
+            start_date DATE NOT NULL,
+            completion_message VARCHAR(500) NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            FOREIGN KEY (template_id) REFERENCES habit_templates (id) ON DELETE SET NULL,
+            FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL,
+            FOREIGN KEY (message_id) REFERENCES completion_messages (id) ON DELETE SET NULL
+        )",
+        @"CREATE TABLE IF NOT EXISTS checkins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            habit_id INT NOT NULL,
+            date DATE NOT NULL,
+            UNIQUE (habit_id, date),
+            FOREIGN KEY (habit_id) REFERENCES habits (id) ON DELETE CASCADE
+        )",
+        @"CREATE TABLE IF NOT EXISTS reminders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            habit_id INT NOT NULL,
+            time TIME NOT NULL,
+            is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            UNIQUE (habit_id, time),
+            FOREIGN KEY (habit_id) REFERENCES habits (id) ON DELETE CASCADE
+        )",
+        @"CREATE TABLE IF NOT EXISTS achievements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            code VARCHAR(30) NOT NULL UNIQUE,
+            title VARCHAR(50) NOT NULL,
+            emoji VARCHAR(10) NOT NULL,
+            description VARCHAR(200) NOT NULL
+        )",
+        @"CREATE TABLE IF NOT EXISTS user_achievements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            achievement_id INT NOT NULL,
+            earned_date DATE NOT NULL,
+            UNIQUE (user_id, achievement_id),
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            FOREIGN KEY (achievement_id) REFERENCES achievements (id) ON DELETE CASCADE
+        )",
+        @"CREATE TABLE IF NOT EXISTS user_activity (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            date DATE NOT NULL,
+            UNIQUE (user_id, date),
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )",
+        @"CREATE TABLE IF NOT EXISTS template_requests (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            category_id INT NULL,
+            title VARCHAR(50) NOT NULL,
+            emoji VARCHAR(10) NOT NULL,
+            description VARCHAR(200) NOT NULL DEFAULT '',
+            completion_message VARCHAR(500) NOT NULL,
+            status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+            reject_reason VARCHAR(200) NULL,
+            created_date DATE NOT NULL,
+            reviewed_date DATE NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL
+        )",
+        @"CREATE TABLE IF NOT EXISTS audit_log (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            action VARCHAR(20) NOT NULL,
+            table_name VARCHAR(50) NOT NULL,
+            record_id INT NOT NULL,
+            details VARCHAR(1000) NOT NULL
+        )",
+    };
+
+    private static readonly string[] TriggerSql =
+    {
+        @"CREATE TRIGGER trg_checkins_activity AFTER INSERT ON checkins FOR EACH ROW
+            INSERT IGNORE INTO user_activity (user_id, date)
+            SELECT user_id, NEW.date FROM habits WHERE id = NEW.habit_id",
+        @"CREATE TRIGGER trg_checkins_audit AFTER INSERT ON checkins FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            SELECT 'добавление', 'checkins', NEW.id,
+                CONCAT(u.username, ': отметка «', h.title, '» за ', DATE_FORMAT(NEW.date, '%Y-%m-%d'))
+            FROM habits h JOIN users u ON u.id = h.user_id
+            WHERE h.id = NEW.habit_id",
+        @"CREATE TRIGGER trg_users_insert AFTER INSERT ON users FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            VALUES ('добавление', 'users', NEW.id, CONCAT('Зарегистрирован пользователь ', NEW.username))",
+        @"CREATE TRIGGER trg_habits_insert AFTER INSERT ON habits FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            VALUES ('добавление', 'habits', NEW.id,
+                CONCAT((SELECT username FROM users WHERE id = NEW.user_id),
+                    ': создана привычка «', NEW.title, '» на ', NEW.target_days, ' дн.'))",
+        @"CREATE TRIGGER trg_habits_update AFTER UPDATE ON habits FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            SELECT 'изменение', 'habits', NEW.id,
+                CONCAT((SELECT username FROM users WHERE id = NEW.user_id), ': изменена привычка «', OLD.title, '»',
+                    IF(BINARY OLD.title <> BINARY NEW.title, CONCAT(', новое название «', NEW.title, '»'), ''),
+                    IF(OLD.target_days <> NEW.target_days, CONCAT(', срок ', OLD.target_days, ' → ', NEW.target_days), ''))
+            FROM DUAL
+            WHERE NOT (BINARY OLD.title <=> BINARY NEW.title AND BINARY OLD.emoji <=> BINARY NEW.emoji
+                AND OLD.category_id <=> NEW.category_id AND OLD.target_days <=> NEW.target_days
+                AND OLD.hours_per_day <=> NEW.hours_per_day)",
+        @"CREATE TRIGGER trg_habits_delete AFTER DELETE ON habits FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            VALUES ('удаление', 'habits', OLD.id,
+                CONCAT(COALESCE((SELECT username FROM users WHERE id = OLD.user_id), CONCAT('пользователь #', OLD.user_id)),
+                    ': удалена привычка «', OLD.title, '»'))",
+        @"CREATE TRIGGER trg_templates_insert AFTER INSERT ON habit_templates FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            VALUES ('добавление', 'habit_templates', NEW.id, CONCAT('В список добавлена привычка «', NEW.title, '»'))",
+        @"CREATE TRIGGER trg_templates_delete AFTER DELETE ON habit_templates FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            VALUES ('удаление', 'habit_templates', OLD.id, CONCAT('Из списка удалена привычка «', OLD.title, '»'))",
+        @"CREATE TRIGGER trg_requests_insert AFTER INSERT ON template_requests FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            VALUES ('добавление', 'template_requests', NEW.id,
+                CONCAT((SELECT username FROM users WHERE id = NEW.user_id), ': заявка на привычку «', NEW.title, '»'))",
+        @"CREATE TRIGGER trg_requests_review AFTER UPDATE ON template_requests FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            SELECT 'изменение', 'template_requests', NEW.id,
+                CONCAT('Заявка «', NEW.title, '» ',
+                    CASE NEW.status
+                        WHEN 'approved' THEN 'одобрена'
+                        WHEN 'rejected' THEN CONCAT('отклонена: ', COALESCE(NEW.reject_reason, ''))
+                        ELSE NEW.status
+                    END)
+            FROM DUAL
+            WHERE NOT (OLD.status <=> NEW.status)",
+        @"CREATE TRIGGER trg_requests_delete AFTER DELETE ON template_requests FOR EACH ROW
+            INSERT INTO audit_log (action, table_name, record_id, details)
+            VALUES ('удаление', 'template_requests', OLD.id,
+                CONCAT(COALESCE((SELECT username FROM users WHERE id = OLD.user_id), CONCAT('пользователь #', OLD.user_id)),
+                    ': отозвана заявка «', OLD.title, '»'))",
+    };
+
+    public static void LoadSettings()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "connection.txt");
+        if (File.Exists(path))
+        {
+            ConnectionString = File.ReadAllText(path).Trim();
+        }
+    }
+
+    public static MySqlConnection Open()
+    {
+        MySqlConnection connection = new MySqlConnection(ConnectionString);
         connection.Open();
         return connection;
     }
 
     public static void Initialize()
     {
-        // Файл от старой версии: его таблицы не совпадают с ERD, а начальные данные в него не попадут.
-        // Пересоздаём базу с нуля — в ней только тестовые данные.
-        if (File.Exists(FilePath) && ReadSchemaVersion() < SchemaVersion)
+        CreateDatabase();
+
+        using (MySqlConnection connection = Open())
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(FilePath);
-        }
+            foreach (string sql in TableSql)
+            {
+                Execute(connection, sql);
+            }
 
-        using (SqliteConnection connection = Open())
-        {
-            SqliteCommand command = connection.CreateCommand();
-            command.CommandText = @"
-                CREATE TABLE IF NOT EXISTS roles (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE
-                );
+            foreach (string sql in TriggerSql)
+            {
+                string name = sql.Split(' ')[2];
+                Execute(connection, "DROP TRIGGER IF EXISTS " + name);
+                Execute(connection, sql);
+            }
 
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                    password_hash TEXT NOT NULL,
-                    role_id INTEGER NOT NULL REFERENCES roles (id)
-                );
-
-                CREATE TABLE IF NOT EXISTS categories (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE
-                );
-
-                CREATE TABLE IF NOT EXISTS completion_messages (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    text TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS habit_templates (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    category_id INTEGER REFERENCES categories (id) ON DELETE SET NULL,
-                    title TEXT NOT NULL,
-                    emoji TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    completion_message TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS habits (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-                    template_id INTEGER REFERENCES habit_templates (id) ON DELETE SET NULL,
-                    category_id INTEGER REFERENCES categories (id) ON DELETE SET NULL,
-                    message_id INTEGER REFERENCES completion_messages (id) ON DELETE SET NULL,
-                    title TEXT NOT NULL,
-                    emoji TEXT NOT NULL,
-                    target_days INTEGER NOT NULL,
-                    hours_per_day REAL,
-                    start_date TEXT NOT NULL,
-                    completion_message TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS checkins (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    habit_id INTEGER NOT NULL REFERENCES habits (id) ON DELETE CASCADE,
-                    date TEXT NOT NULL,
-                    UNIQUE (habit_id, date)
-                );
-
-                CREATE TABLE IF NOT EXISTS reminders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    habit_id INTEGER NOT NULL REFERENCES habits (id) ON DELETE CASCADE,
-                    time TEXT NOT NULL,
-                    is_enabled INTEGER NOT NULL DEFAULT 1,
-                    UNIQUE (habit_id, time)
-                );
-
-                CREATE TABLE IF NOT EXISTS achievements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    code TEXT NOT NULL UNIQUE,
-                    title TEXT NOT NULL,
-                    emoji TEXT NOT NULL,
-                    description TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS user_achievements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-                    achievement_id INTEGER NOT NULL REFERENCES achievements (id) ON DELETE CASCADE,
-                    earned_date TEXT NOT NULL,
-                    UNIQUE (user_id, achievement_id)
-                );
-
-                CREATE TABLE IF NOT EXISTS user_activity (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-                    date TEXT NOT NULL,
-                    UNIQUE (user_id, date)
-                );
-
-                CREATE TABLE IF NOT EXISTS template_requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-                    category_id INTEGER REFERENCES categories (id) ON DELETE SET NULL,
-                    title TEXT NOT NULL,
-                    emoji TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    completion_message TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-                    reject_reason TEXT,
-                    created_date TEXT NOT NULL,
-                    reviewed_date TEXT
-                );
-
-                CREATE TABLE IF NOT EXISTS audit_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-                    action TEXT NOT NULL,
-                    table_name TEXT NOT NULL,
-                    record_id INTEGER NOT NULL,
-                    details TEXT NOT NULL
-                );
-
-                CREATE TRIGGER IF NOT EXISTS trg_checkins_activity AFTER INSERT ON checkins
-                BEGIN
-                    INSERT OR IGNORE INTO user_activity (user_id, date)
-                    SELECT user_id, NEW.date FROM habits WHERE id = NEW.habit_id;
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_checkins_audit AFTER INSERT ON checkins
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    SELECT 'добавление', 'checkins', NEW.id, u.username || ': отметка «' || h.title || '» за ' || NEW.date
-                    FROM habits h JOIN users u ON u.id = h.user_id
-                    WHERE h.id = NEW.habit_id;
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_users_insert AFTER INSERT ON users
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('добавление', 'users', NEW.id, 'Зарегистрирован пользователь ' || NEW.username);
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_habits_insert AFTER INSERT ON habits
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('добавление', 'habits', NEW.id,
-                        (SELECT username FROM users WHERE id = NEW.user_id)
-                        || ': создана привычка «' || NEW.title || '» на ' || NEW.target_days || ' дн.');
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_habits_update
-                AFTER UPDATE OF title, emoji, category_id, target_days, hours_per_day ON habits
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('изменение', 'habits', NEW.id,
-                        (SELECT username FROM users WHERE id = NEW.user_id)
-                        || ': изменена привычка «' || OLD.title || '»'
-                        || CASE WHEN OLD.title <> NEW.title THEN ', новое название «' || NEW.title || '»' ELSE '' END
-                        || CASE WHEN OLD.target_days <> NEW.target_days
-                                THEN ', срок ' || OLD.target_days || ' → ' || NEW.target_days ELSE '' END);
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_habits_delete AFTER DELETE ON habits
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('удаление', 'habits', OLD.id,
-                        COALESCE((SELECT username FROM users WHERE id = OLD.user_id), 'пользователь #' || OLD.user_id)
-                        || ': удалена привычка «' || OLD.title || '»');
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_templates_insert AFTER INSERT ON habit_templates
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('добавление', 'habit_templates', NEW.id, 'В список добавлена привычка «' || NEW.title || '»');
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_templates_delete AFTER DELETE ON habit_templates
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('удаление', 'habit_templates', OLD.id, 'Из списка удалена привычка «' || OLD.title || '»');
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_requests_insert AFTER INSERT ON template_requests
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('добавление', 'template_requests', NEW.id,
-                        (SELECT username FROM users WHERE id = NEW.user_id) || ': заявка на привычку «' || NEW.title || '»');
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_requests_review AFTER UPDATE OF status ON template_requests
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('изменение', 'template_requests', NEW.id,
-                        'Заявка «' || NEW.title || '» '
-                        || CASE NEW.status WHEN 'approved' THEN 'одобрена'
-                                           WHEN 'rejected' THEN 'отклонена: ' || NEW.reject_reason
-                                           ELSE NEW.status END);
-                END;
-
-                CREATE TRIGGER IF NOT EXISTS trg_requests_delete AFTER DELETE ON template_requests
-                BEGIN
-                    INSERT INTO audit_log (action, table_name, record_id, details)
-                    VALUES ('удаление', 'template_requests', OLD.id,
-                        COALESCE((SELECT username FROM users WHERE id = OLD.user_id), 'пользователь #' || OLD.user_id)
-                        || ': отозвана заявка «' || OLD.title || '»');
-                END;
-
-                INSERT OR IGNORE INTO roles (name) VALUES ('user'), ('admin');
-
-                PRAGMA user_version = " + SchemaVersion + ";";
-            command.ExecuteNonQuery();
+            Execute(connection, "INSERT IGNORE INTO roles (name) VALUES ('user'), ('admin')");
         }
 
         if (UserRepository.Count() == 0)
@@ -234,74 +231,170 @@ public static class Database
         }
     }
 
-    private static int ReadSchemaVersion()
+    public static void Reset()
     {
-        using (SqliteConnection connection = Open())
+        MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder(ConnectionString);
+        string name = builder.Database;
+        builder.Database = "";
+
+        using (MySqlConnection connection = new MySqlConnection(builder.ConnectionString))
         {
-            SqliteCommand command = connection.CreateCommand();
-            command.CommandText = "PRAGMA user_version";
-            return Convert.ToInt32(command.ExecuteScalar());
+            connection.Open();
+            Execute(connection, "DROP DATABASE IF EXISTS `" + name + "`");
         }
+
+        MySqlConnection.ClearAllPools();
+        Initialize();
+    }
+
+    private static void CreateDatabase()
+    {
+        MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder(ConnectionString);
+        string name = builder.Database;
+        builder.Database = "";
+
+        using (MySqlConnection connection = new MySqlConnection(builder.ConnectionString))
+        {
+            connection.Open();
+            Execute(connection, "CREATE DATABASE IF NOT EXISTS `" + name + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci");
+        }
+    }
+
+    private static void Execute(MySqlConnection connection, string sql, MySqlTransaction transaction = null)
+    {
+        MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = sql;
+        command.ExecuteNonQuery();
     }
 
     public static void Backup(string targetPath)
     {
-        if (File.Exists(targetPath))
+        using (MySqlConnection connection = Open())
+        using (StreamWriter writer = new StreamWriter(targetPath, false, new UTF8Encoding(false)))
         {
-            File.Delete(targetPath);
-        }
+            writer.WriteLine(BackupHeader);
+            writer.WriteLine("-- " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
 
-        using (SqliteConnection connection = Open())
-        {
-            SqliteCommand command = connection.CreateCommand();
-            command.CommandText = "VACUUM INTO @path";
-            command.Parameters.AddWithValue("@path", targetPath);
-            command.ExecuteNonQuery();
+            foreach (string table in Tables)
+            {
+                MySqlCommand command = connection.CreateCommand();
+                command.CommandText = "SELECT * FROM `" + table + "`";
+
+                using (MySqlDataReader reader = command.ExecuteReader())
+                {
+                    List<string> columns = new List<string>();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        columns.Add("`" + reader.GetName(i) + "`");
+                    }
+
+                    while (reader.Read())
+                    {
+                        List<string> values = new List<string>();
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            values.Add(ToSqlValue(reader.GetValue(i)));
+                        }
+                        writer.WriteLine("INSERT INTO `" + table + "` (" + string.Join(", ", columns) + ") VALUES (" + string.Join(", ", values) + ");");
+                    }
+                }
+            }
         }
+    }
+
+    private static string ToSqlValue(object value)
+    {
+        if (value is DBNull)
+        {
+            return "NULL";
+        }
+        if (value is string)
+        {
+            string text = (string)value;
+            text = text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\r", "\\r").Replace("\n", "\\n").Replace("\0", "\\0");
+            return "'" + text + "'";
+        }
+        if (value is DateTime)
+        {
+            DateTime date = (DateTime)value;
+            if (date.TimeOfDay == TimeSpan.Zero)
+            {
+                return "'" + date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + "'";
+            }
+            return "'" + date.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "'";
+        }
+        if (value is TimeSpan)
+        {
+            return "'" + ((TimeSpan)value).ToString(@"hh\:mm\:ss") + "'";
+        }
+        if (value is bool)
+        {
+            return (bool)value ? "1" : "0";
+        }
+        return Convert.ToString(value, CultureInfo.InvariantCulture);
     }
 
     public static string CheckBackupFile(string path)
     {
         try
         {
-            using (SqliteConnection connection = new SqliteConnection("Data Source=" + path + ";Mode=ReadOnly"))
+            using (StreamReader reader = new StreamReader(path))
             {
-                connection.Open();
-                SqliteCommand command = connection.CreateCommand();
-                command.CommandText = "PRAGMA user_version";
-                int version = Convert.ToInt32(command.ExecuteScalar());
-                if (version != SchemaVersion)
+                if (reader.ReadLine() != BackupHeader)
                 {
-                    return "Копия от другой версии приложения (версия схемы " + version + ", нужна " + SchemaVersion + ")";
+                    return "Файл не является резервной копией приложения";
                 }
             }
         }
-        catch (SqliteException)
+        catch (IOException)
         {
-            return "Файл не является базой данных приложения";
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
+            return "Не удалось прочитать файл резервной копии";
         }
         return null;
     }
 
     public static void Restore(string sourcePath)
     {
-        byte[] backup = File.ReadAllBytes(sourcePath);
-        Backup(Path.Combine(AppContext.BaseDirectory, "habits-before-restore.db"));
-        SqliteConnection.ClearAllPools();
-        File.WriteAllBytes(FilePath, backup);
+        string[] lines = File.ReadAllLines(sourcePath);
+        Backup(Path.Combine(AppContext.BaseDirectory, "habits-before-restore.sql"));
+
+        using (MySqlConnection connection = Open())
+        using (MySqlTransaction transaction = connection.BeginTransaction())
+        {
+            Execute(connection, "SET FOREIGN_KEY_CHECKS = 0", transaction);
+
+            foreach (string table in Tables)
+            {
+                Execute(connection, "DELETE FROM `" + table + "`", transaction);
+            }
+
+            foreach (string line in lines)
+            {
+                if (line.StartsWith("INSERT INTO") && !IsFilledByTriggers(line))
+                {
+                    Execute(connection, line, transaction);
+                }
+            }
+
+            Execute(connection, "DELETE FROM audit_log", transaction);
+            Execute(connection, "DELETE FROM user_activity", transaction);
+
+            foreach (string line in lines)
+            {
+                if (IsFilledByTriggers(line))
+                {
+                    Execute(connection, line, transaction);
+                }
+            }
+
+            Execute(connection, "SET FOREIGN_KEY_CHECKS = 1", transaction);
+            transaction.Commit();
+        }
     }
 
-    public static string DateToText(DateTime date)
+    private static bool IsFilledByTriggers(string line)
     {
-        return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-    }
-
-    public static DateTime TextToDate(string text)
-    {
-        return DateTime.ParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return line.StartsWith("INSERT INTO `audit_log`") || line.StartsWith("INSERT INTO `user_activity`");
     }
 }

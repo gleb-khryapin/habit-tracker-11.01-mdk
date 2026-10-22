@@ -40,17 +40,11 @@ public partial class AuditForm : Form
     {
         SaveFileDialog dialog = new SaveFileDialog();
         dialog.Title = "Сохранить резервную копию";
-        dialog.Filter = "База данных SQLite (*.db)|*.db";
-        dialog.FileName = "habits-backup-" + DateTime.Now.ToString("yyyy-MM-dd-HHmm") + ".db";
+        dialog.Filter = "Резервная копия SQL (*.sql)|*.sql";
+        dialog.FileName = "habits-backup-" + DateTime.Now.ToString("yyyy-MM-dd-HHmm") + ".sql";
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
-            return;
-        }
-
-        if (Path.GetFullPath(dialog.FileName) == Path.GetFullPath(Database.FilePath))
-        {
-            Dialogs.Error("Нельзя сохранить копию поверх рабочей базы. Выбери другое имя или папку.");
             return;
         }
 
@@ -62,7 +56,7 @@ public partial class AuditForm : Form
     {
         OpenFileDialog dialog = new OpenFileDialog();
         dialog.Title = "Выбрать резервную копию";
-        dialog.Filter = "База данных SQLite (*.db)|*.db";
+        dialog.Filter = "Резервная копия SQL (*.sql)|*.sql";
 
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
@@ -77,7 +71,7 @@ public partial class AuditForm : Form
         }
 
         if (!Dialogs.Confirm("Заменить текущие данные данными из копии? Всё, что сделано после её создания, пропадёт. "
-            + "Текущая база сохранится в файл habits-before-restore.db рядом с программой."))
+            + "Текущие данные сохранятся в файл habits-before-restore.sql рядом с программой."))
         {
             return;
         }

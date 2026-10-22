@@ -1,5 +1,5 @@
 using HabitTrackerDesktop.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -9,9 +9,9 @@ public static class HabitRepository
     {
         List<Habit> habits = new List<Habit>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 SELECT h.id, h.user_id, h.title, h.emoji, h.target_days, h.hours_per_day, h.start_date, h.completion_message,
                        (SELECT COUNT(*) FROM checkins ch WHERE ch.habit_id = h.id) AS progress,
@@ -23,7 +23,7 @@ public static class HabitRepository
                 ORDER BY h.id";
             command.Parameters.AddWithValue("@userId", userId);
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
@@ -35,14 +35,14 @@ public static class HabitRepository
                     habit.TargetDays = reader.GetInt32(4);
                     if (!reader.IsDBNull(5))
                     {
-                        habit.HoursPerDay = reader.GetDouble(5);
+                        habit.HoursPerDay = Convert.ToDouble(reader.GetDecimal(5));
                     }
-                    habit.StartDate = Database.TextToDate(reader.GetString(6));
+                    habit.StartDate = reader.GetDateTime(6);
                     if (!reader.IsDBNull(7))
                     {
                         habit.CompletionMessage = reader.GetString(7);
                     }
-                    habit.Progress = reader.GetInt32(8);
+                    habit.Progress = Convert.ToInt32(reader.GetInt64(8));
                     if (!reader.IsDBNull(9))
                     {
                         habit.TemplateId = reader.GetInt32(9);
@@ -66,13 +66,13 @@ public static class HabitRepository
 
     public static void Add(Habit habit)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 INSERT INTO habits (user_id, template_id, category_id, title, emoji, target_days, hours_per_day, start_date, completion_message)
                 VALUES (@userId, @templateId, @categoryId, @title, @emoji, @targetDays, @hours, @startDate, @message);
-                SELECT last_insert_rowid();";
+                SELECT LAST_INSERT_ID();";
             command.Parameters.AddWithValue("@userId", habit.UserId);
             command.Parameters.AddWithValue("@templateId", (object)habit.TemplateId ?? DBNull.Value);
             command.Parameters.AddWithValue("@categoryId", (object)habit.CategoryId ?? DBNull.Value);
@@ -80,7 +80,7 @@ public static class HabitRepository
             command.Parameters.AddWithValue("@emoji", habit.Emoji);
             command.Parameters.AddWithValue("@targetDays", habit.TargetDays);
             command.Parameters.AddWithValue("@hours", (object)habit.HoursPerDay ?? DBNull.Value);
-            command.Parameters.AddWithValue("@startDate", Database.DateToText(habit.StartDate));
+            command.Parameters.AddWithValue("@startDate", habit.StartDate.Date);
             command.Parameters.AddWithValue("@message", (object)habit.CompletionMessage ?? DBNull.Value);
             habit.Id = Convert.ToInt32(command.ExecuteScalar());
         }
@@ -100,9 +100,9 @@ public static class HabitRepository
 
     private static void SetMessage(int habitId, int messageId)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "UPDATE habits SET message_id = @messageId WHERE id = @id";
             command.Parameters.AddWithValue("@messageId", messageId);
             command.Parameters.AddWithValue("@id", habitId);
@@ -112,9 +112,9 @@ public static class HabitRepository
 
     public static void Update(Habit habit)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = @"
                 UPDATE habits
                 SET title = @title, emoji = @emoji, category_id = @categoryId, target_days = @targetDays, hours_per_day = @hours
@@ -131,9 +131,9 @@ public static class HabitRepository
 
     public static void Delete(int id)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "DELETE FROM habits WHERE id = @id";
             command.Parameters.AddWithValue("@id", id);
             command.ExecuteNonQuery();
@@ -142,12 +142,12 @@ public static class HabitRepository
 
     public static void AddCheckin(int habitId, DateTime date)
     {
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "INSERT INTO checkins (habit_id, date) VALUES (@habitId, @date)";
             command.Parameters.AddWithValue("@habitId", habitId);
-            command.Parameters.AddWithValue("@date", Database.DateToText(date));
+            command.Parameters.AddWithValue("@date", date.Date);
             command.ExecuteNonQuery();
         }
     }

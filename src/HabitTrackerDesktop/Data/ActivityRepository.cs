@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace HabitTrackerDesktop.Data;
 
@@ -8,17 +8,17 @@ public static class ActivityRepository
     {
         List<DateTime> days = new List<DateTime>();
 
-        using (SqliteConnection connection = Database.Open())
+        using (MySqlConnection connection = Database.Open())
         {
-            SqliteCommand command = connection.CreateCommand();
+            MySqlCommand command = connection.CreateCommand();
             command.CommandText = "SELECT date FROM user_activity WHERE user_id = @userId ORDER BY date";
             command.Parameters.AddWithValue("@userId", userId);
 
-            using (SqliteDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
                 while (reader.Read())
                 {
-                    days.Add(Database.TextToDate(reader.GetString(0)));
+                    days.Add(reader.GetDateTime(0));
                 }
             }
         }
