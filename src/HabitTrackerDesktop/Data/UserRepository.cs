@@ -44,6 +44,35 @@ public static class UserRepository
         }
     }
 
+    public static List<User> GetAll()
+    {
+        List<User> users = new List<User>();
+
+        using (MySqlConnection connection = Database.Open())
+        {
+            MySqlCommand command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT u.id, u.username, r.name
+                FROM users u
+                JOIN roles r ON r.id = u.role_id
+                ORDER BY u.username";
+
+            using (MySqlDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    User user = new User();
+                    user.Id = reader.GetInt32(0);
+                    user.Username = reader.GetString(1);
+                    user.Role = reader.GetString(2);
+                    users.Add(user);
+                }
+            }
+        }
+
+        return users;
+    }
+
     public static void Add(User user)
     {
         using (MySqlConnection connection = Database.Open())

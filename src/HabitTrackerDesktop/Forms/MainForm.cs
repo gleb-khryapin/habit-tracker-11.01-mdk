@@ -1,3 +1,4 @@
+using System.Text;
 using HabitTrackerDesktop.Data;
 using HabitTrackerDesktop.Models;
 using HabitTrackerDesktop.Services;
@@ -25,10 +26,14 @@ public partial class MainForm : Form
         btnCategories.Visible = user.IsAdmin;
         btnPhrases.Visible = user.IsAdmin;
         btnAudit.Visible = user.IsAdmin;
+        btnReport.Visible = user.IsAdmin;
         if (user.IsAdmin)
         {
             btnRequests.Text = "Заявки";
         }
+
+        cmbSort.Items.AddRange(new object[] { "По статусу", "По названию", "Сначала новые", "По прогрессу" });
+        cmbSort.SelectedIndex = 0;
 
         LoadCategories();
         LoadHabits();
@@ -67,20 +72,25 @@ public partial class MainForm : Form
         Habit selected = GetSelectedHabit();
         Category filter = cmbCategory.SelectedItem as Category;
         DateTime today = Clock.Today;
-        List<Habit> habits = HabitRepository.GetByUser(Session.CurrentUser.Id);
-        HabitStatus[] order = { HabitStatus.Active, HabitStatus.Completed, HabitStatus.Failed };
+        string search = txtSearch.Text.Trim();
+        List<Habit> shown = new List<Habit>();
+
+        foreach (Habit habit in HabitRepository.GetByUser(Session.CurrentUser.Id))
+        {
+            bool inCategory = filter == null || filter.Id == 0 || habit.CategoryId == filter.Id;
+            bool found = search == "" || habit.Title.Contains(search, StringComparison.CurrentCultureIgnoreCase);
+            if (inCategory && found)
+            {
+                shown.Add(habit);
+            }
+        }
+
+        shown = SortHabits(shown, today);
 
         grid.Rows.Clear();
-        foreach (HabitStatus status in order)
+        foreach (Habit habit in shown)
         {
-            foreach (Habit habit in habits)
-            {
-                bool inCategory = filter == null || filter.Id == 0 || habit.CategoryId == filter.Id;
-                if (habit.GetStatus(today) == status && inCategory)
-                {
-                    AddRow(habit, status);
-                }
-            }
+            AddRow(habit, habit.GetStatus(today));
         }
 
         if (selected != null)
@@ -97,6 +107,23 @@ public partial class MainForm : Form
 
         UpdateDetails();
         UpdateStreak();
+    }
+
+    private List<Habit> SortHabits(List<Habit> habits, DateTime today)
+    {
+        if (cmbSort.SelectedIndex == 1)
+        {
+            return habits.OrderBy(h => h.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+        if (cmbSort.SelectedIndex == 2)
+        {
+            return habits.OrderByDescending(h => h.StartDate).ToList();
+        }
+        if (cmbSort.SelectedIndex == 3)
+        {
+            return habits.OrderByDescending(h => (double)h.Progress / h.TargetDays).ToList();
+        }
+        return habits.OrderBy(h => h.GetStatus(today)).ToList();
     }
 
     private void UpdateStreak()
@@ -136,16 +163,14 @@ public partial class MainForm : Form
             hours = habit.HoursPerDay.Value.ToString("0.#") + " ч";
         }
 
-        string statusText = "В процессе";
+        string statusText = ReportBuilder.GetStatusText(status);
         Color statusColor = Theme.Accent;
         if (status == HabitStatus.Completed)
         {
-            statusText = "Выполнена";
             statusColor = Theme.Success;
         }
         if (status == HabitStatus.Failed)
         {
-            statusText = "Прервана";
             statusColor = Theme.Danger;
         }
 
@@ -183,10 +208,15 @@ public partial class MainForm : Form
         btnReminders.Enabled = false;
         btnEdit.Enabled = false;
         btnDelete.Enabled = habit != null;
+        btnCertificate.Enabled = habit != null && habit.GetStatus(today) == HabitStatus.Completed;
 
         if (habit == null)
         {
-            if (cmbCategory.SelectedIndex > 0)
+            if (txtSearch.Text.Trim() != "")
+            {
+                lblDetails.Text = "Ничего не найдено. Измени текст поиска.";
+            }
+            else if (cmbCategory.SelectedIndex > 0)
             {
                 lblDetails.Text = "В этой категории привычек нет.";
             }
@@ -276,6 +306,56 @@ public partial class MainForm : Form
         }
 
         ShowNewAchievements();
+    }
+
+    private void txtSearch_TextChanged(object sender, EventArgs e)
+    {
+        LoadHabits();
+    }
+
+    private void cmbSort_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        LoadHabits();
+    }
+
+    private void btnReport_Click(object sender, EventArgs e)
+    {
+        SaveFileDialog dialog = new SaveFileDialog();
+        dialog.Title = "Сохранить отчёт";
+        dialog.Filter = "Текстовый файл (*.txt)|*.txt";
+        dialog.FileName = "Отчёт по привычкам " + Clock.Today.ToString("yyyy-MM-dd") + ".txt";
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        string text = ReportBuilder.BuildAdminReport(Clock.Today, Session.CurrentUser.Username);
+        File.WriteAllText(dialog.FileName, text, Encoding.UTF8);
+        Dialogs.Info("Отчёт", "Отчёт сохранён:\n" + dialog.FileName);
+    }
+
+    private void btnCertificate_Click(object sender, EventArgs e)
+    {
+        Habit habit = GetSelectedHabit();
+        if (habit == null || habit.GetStatus(Clock.Today) != HabitStatus.Completed)
+        {
+            return;
+        }
+
+        SaveFileDialog dialog = new SaveFileDialog();
+        dialog.Title = "Сохранить сертификат";
+        dialog.Filter = "Текстовый файл (*.txt)|*.txt";
+        dialog.FileName = "Сертификат " + habit.Id + ".txt";
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        string text = ReportBuilder.BuildCertificate(habit, Session.CurrentUser.Username, Clock.Today);
+        File.WriteAllText(dialog.FileName, text, Encoding.UTF8);
+        Dialogs.Info("Сертификат", "Сертификат сохранён:\n" + dialog.FileName);
     }
 
     private void btnReminders_Click(object sender, EventArgs e)

@@ -41,6 +41,12 @@ partial class MainForm
         btnAdd = new Button();
         btnEdit = new Button();
         btnDelete = new Button();
+        lblSearch = new Label();
+        txtSearch = new TextBox();
+        lblSort = new Label();
+        cmbSort = new ComboBox();
+        btnReport = new Button();
+        btnCertificate = new Button();
         timer = new System.Windows.Forms.Timer(components);
         ((System.ComponentModel.ISupportInitialize)grid).BeginInit();
         SuspendLayout();
@@ -136,14 +142,14 @@ partial class MainForm
         grid.ColumnHeadersHeight = 38;
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         grid.Columns.AddRange(new DataGridViewColumn[] { colEmoji, colTitle, colCategory, colProgress, colHours, colStart, colStatus });
-        grid.Location = new Point(24, 128);
+        grid.Location = new Point(24, 172);
         grid.MultiSelect = false;
         grid.Name = "grid";
         grid.ReadOnly = true;
         grid.RowHeadersVisible = false;
         grid.RowTemplate.Height = 38;
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        grid.Size = new Size(932, 372);
+        grid.Size = new Size(932, 328);
         grid.TabIndex = 8;
         grid.SelectionChanged += grid_SelectionChanged;
 
@@ -244,6 +250,49 @@ partial class MainForm
         btnDelete.Text = "Удалить";
         btnDelete.Click += btnDelete_Click;
 
+        lblSearch.AutoSize = true;
+        lblSearch.Location = new Point(21, 134);
+        lblSearch.Name = "lblSearch";
+        lblSearch.TabIndex = 23;
+        lblSearch.Tag = "muted";
+        lblSearch.Text = "Поиск";
+
+        txtSearch.Location = new Point(76, 130);
+        txtSearch.Name = "txtSearch";
+        txtSearch.Size = new Size(240, 25);
+        txtSearch.TabIndex = 24;
+        txtSearch.TextChanged += txtSearch_TextChanged;
+
+        lblSort.AutoSize = true;
+        lblSort.Location = new Point(336, 134);
+        lblSort.Name = "lblSort";
+        lblSort.TabIndex = 25;
+        lblSort.Tag = "muted";
+        lblSort.Text = "Сортировка";
+
+        cmbSort.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbSort.Location = new Point(428, 130);
+        cmbSort.Name = "cmbSort";
+        cmbSort.Size = new Size(200, 25);
+        cmbSort.TabIndex = 26;
+        cmbSort.SelectedIndexChanged += cmbSort_SelectedIndexChanged;
+
+        btnReport.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnReport.Location = new Point(806, 124);
+        btnReport.Name = "btnReport";
+        btnReport.Size = new Size(150, 36);
+        btnReport.TabIndex = 27;
+        btnReport.Text = "Отчёт (.txt)";
+        btnReport.Click += btnReport_Click;
+
+        btnCertificate.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnCertificate.Location = new Point(398, 592);
+        btnCertificate.Name = "btnCertificate";
+        btnCertificate.Size = new Size(160, 40);
+        btnCertificate.TabIndex = 28;
+        btnCertificate.Text = "Сертификат";
+        btnCertificate.Click += btnCertificate_Click;
+
         timer.Enabled = true;
         timer.Interval = 20000;
         timer.Tick += timer_Tick;
@@ -269,6 +318,12 @@ partial class MainForm
         Controls.Add(btnAdd);
         Controls.Add(btnEdit);
         Controls.Add(btnDelete);
+        Controls.Add(lblSearch);
+        Controls.Add(txtSearch);
+        Controls.Add(lblSort);
+        Controls.Add(cmbSort);
+        Controls.Add(btnReport);
+        Controls.Add(btnCertificate);
         Font = new Font("Segoe UI", 10F);
         MinimumSize = new Size(996, 600);
         Name = "MainForm";
@@ -304,5 +359,11 @@ partial class MainForm
     private Button btnAdd;
     private Button btnEdit;
     private Button btnDelete;
+    private Label lblSearch;
+    private TextBox txtSearch;
+    private Label lblSort;
+    private ComboBox cmbSort;
+    private Button btnReport;
+    private Button btnCertificate;
     private System.Windows.Forms.Timer timer;
 }
